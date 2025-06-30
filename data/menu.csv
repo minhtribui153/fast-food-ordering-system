@@ -3,3 +3,19 @@ B01,Classic Beef Burger,5.50
 B02,Chicken Burger,5.00
 B03,Veggie Burger,4.80
 B04,Spicy Chicken Burger,5.30
+S01,French Fries,2.50
+S02,Onion Rings,2.80
+S03,Chicken Nuggets (6pc),3.50
+S04,Cheese Sticks (4pc),3.20
+D01,Coke,1.80
+D02,Sprite,1.80
+D03,Ice Lemon Tea,2.20
+D04,Mineral Water,1.50
+DS01,Chocolate Sundae,2.80
+DS02,Vanilla Cone,1.50
+DS03,Apple Pie,2.30
+DS04,Strawberry Sundae,2.80
+C01,Burger + Fries + Drink,8.80
+C02,Nuggets + Fries + Drink,8.50
+C03,Veggie Combo,8.20
+C04,Kids Meal,6.50
