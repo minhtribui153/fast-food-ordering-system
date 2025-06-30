@@ -1,8 +1,8 @@
-from utils import CONFIG, CSVCollection
+from utils import CONFIG, CSVCollection, Table
+import re
 
-category_collection = CSVCollection("test")
-try:
-    category_collection.add_column("test", float, 32.1)
-except TypeError:
-    print("error occurred")
-print(category_collection.columns)
+category_collection = CSVCollection("menu")
+
+
+print(category_collection.fetch_rows(lambda row: re.split(r'(\d+)', row["item_code"])[0] == "C"))
+category_collection.wait_for_update()

@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from typing import Callable, Any
 import re
 import time
 import os
@@ -125,6 +125,16 @@ class CSVCollection:
             if value == self[column_name][i]:
                 return self[i]
         return None
+
+    def fetch_rows(self, find_func: Callable[[dict[str, Any]], bool]) -> list:
+        result = []
+        for row in self.__data:
+            row_dict = {}
+            for i in range(len(self.columns)):
+                row_dict[self.columns[i]["name"]] = row[i]
+            if find_func(row_dict):
+                result += [row]
+        return result
     
     def add_row(self, values: list, insert_at: int = -1):
         """
@@ -251,7 +261,8 @@ class CSVCollection:
         
 
 class Table:
-    def __init__(self, data: list[list[str]]) -> None:
+    def __init__(self, headers: list[str], data: list[list[str]]) -> None:
+        self.headers = headers
         self.data = data
         self.col_widths = [max(len(str(row)) for row in col) for col in data]
         pass
@@ -265,7 +276,9 @@ class Table:
     def __repr__(self) -> str:
         res = ""
         res += self.format_line("+", "+", "+", "-") + "\n"
+        res += self.format_row(self.headers)
+        res += self.format_line("+", "+", "+", "-") + "\n"
         for row in self.data:
             res += self.format_row(row) + "\n"
-            res += self.format_line("+", "+", "+", "-") + "\n"
+        res += self.format_line("+", "+", "+", "-") + "\n"
         return res
