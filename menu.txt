@@ -6,3 +6,18 @@
  >  S01         French Fries               2.50
     S02         Onion Rings                2.80
 
+
+LEFT/RIGHT arrow keys to choose food category
+UP/DOWN arrow keys to choose item
+ENTER to confirm selection
+==============================================================================
+Item selected: (S01) French Fries
+Item price: $2.50
+
+How many do you want to add?
+
+-  1  +
+
+LEFT arrow => -
+RIGHT arrow => +
+ENTER to confirm changes
