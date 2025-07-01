@@ -1,0 +1,8 @@
++------------------------------------------------+
+|  Burgers  [Sides]  Drinks   Desserts   Combos  |
++------------------------------------------------+
+
+    Item Code   Item Name           Price (SGD)
+ >  S01         French Fries               2.50
+    S02         Onion Rings                2.80
+
