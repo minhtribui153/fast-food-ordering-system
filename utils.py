@@ -260,6 +260,24 @@ class CSVCollection:
                 return
         
 
+def display_table(headers: list[str], data: list[list[str]]):
+    """Displays a neat table for a 2D list"""
+    col_widths = [max(len(str(row)) for row in col) for col in data]
+
+    def format_row(row, sep="|"):
+        return sep + sep.join(f" {str(cell):<{col_widths[i]}} " for i, cell in enumerate(row)) + sep
+
+    def format_line(left, mid, right, fill):
+        return left + mid.join(fill * (w + 2) for w in col_widths) + right
+
+    res = ""
+    res += format_line("+", "+", "+", "-") + "\n"
+    res += format_row(headers)
+    res += format_line("+", "+", "+", "=") + "\n"
+    for row in data:
+        res += format_row(row) + "\n"
+    res += format_line("+", "+", "+", "-") + "\n"
+
 class Table:
     def __init__(self, headers: list[str], data: list[list[str]]) -> None:
         self.headers = headers
@@ -268,7 +286,7 @@ class Table:
         pass
 
     def format_row(self, row, sep="|"):
-            return sep + sep.join(f" {str(cell):<{self.col_widths[i]}} " for i, cell in enumerate(row)) + sep
+        return sep + sep.join(f" {str(cell):<{self.col_widths[i]}} " for i, cell in enumerate(row)) + sep
 
     def format_line(self, left, mid, right, fill):
         return left + mid.join(fill * (w + 2) for w in self.col_widths) + right
@@ -277,7 +295,7 @@ class Table:
         res = ""
         res += self.format_line("+", "+", "+", "-") + "\n"
         res += self.format_row(self.headers)
-        res += self.format_line("+", "+", "+", "-") + "\n"
+        res += self.format_line("+", "+", "+", "=") + "\n"
         for row in self.data:
             res += self.format_row(row) + "\n"
         res += self.format_line("+", "+", "+", "-") + "\n"
