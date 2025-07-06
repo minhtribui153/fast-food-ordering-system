@@ -1,4 +1,12 @@
+
 import sys
+
+def clear_console():
+    """Clears the console screen"""
+    # 3J = Erases entire scrollback buffer output of the console
+    # H = Resets cursor to home position
+    # 2J = Clears the output of the visible console screen
+    print("\033[3J\033[H\033[2J", end="")
 
 def split_item_code(item_code):
     """Splits an item code into its category code and category item number."""
@@ -22,17 +30,18 @@ def display_topbar(options=None, selected_option: int = 0, top_line: str = ""):
     print(middle_content)
     print(bar_line)
 
-def display_table(headers: list[str], data: list[list[str]], selected_index: int = -1, tab_space: int = 4):
+def display_table(data: list[list[str]], headers: list[str] = [], selected_index: int = -1, tab_space: int = 4):
     """Prints a formatted table (compatible with interactive menu selection)"""
     # Calculate max width for each column
-    col_widths = [max(len(str(cell)) for cell in col) for col in zip(*([headers] + data))]
+    col_widths = [max(len(str(cell)) for cell in col) for col in zip(*([headers] + data if headers else data))]
     # Helper function to format a row
     def fmt_row(row): return "|" + "|".join(f" {str(cell):<{w}} " for cell, w in zip(row, col_widths)) + "|"
     # Helper function to format a line
     def fmt_line(): return "+" + "+".join("-" * (w + 2) for w in col_widths) + "+"
     padding = " " * tab_space if selected_index > -1 else ""
-    print(padding, fmt_line())
-    print(padding, fmt_row(headers))
+    if len(headers) > 0:
+        print(padding, fmt_line())
+        print(padding, fmt_row(headers))
     print(padding, fmt_line())
     for i, row in enumerate(data):
         # Highlight selected row if needed

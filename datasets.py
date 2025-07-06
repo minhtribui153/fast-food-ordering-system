@@ -1,3 +1,5 @@
+from utils import split_item_code
+
 # { id: (noun_name, plural_name, icon) }
 MENU_ITEM_IDS = {
     "B": ("Burger", "Burgers", "🍔"),
@@ -40,3 +42,64 @@ DISCOUNT_RATES = {
     "staff": 0.08,
     "loyalty_member": 0.05
 }
+
+def generate_item_table(items: list[dict]):
+    """Returns a 2D list of items as a table"""
+    return [
+        [item["id"], item["name"], item["price"]]
+        for item in items
+    ]
+
+def get_items_by_category_code(code: str):
+    """Gets an item by category code"""
+    return [item for item in MENU if split_item_code(item["id"])[0] == code]
+
+def get_item_by_id(item_id: str):
+    """Gets an item by its item ID"""
+    found = [item for item in MENU if item["id"] == item_id]
+    return found[0] if len(found) > 0 else None
+
+def get_items_by_ids(item_ids: list[str]):
+    """
+    Gets items by their ids specified
+    if category_code only: Retrieves all items containing the specified category code
+    """
+    result = []
+    for item_id in item_ids:
+        [cat_code, item_num] = split_item_code(item_id)
+        if item_num == "":
+            result.extend(get_items_by_category_code(cat_code))
+        else:
+            result.append(get_item_by_id(item_id))
+    return result
+
+def parse_item_ref_ids(item_ref_ids: dict) -> list:
+    """
+    Parses the item_ref_ids dictionary from a combo meal.
+    Returns a list of dictionaries with section as key and a dict as value:
+    ```python
+    {
+        'section': str,
+        'options': [...],
+        'quantity': int,
+        'locked': bool
+        ...
+    }
+    ```
+    - `'options'`: `list` of item IDs or category codes available for selection
+    - `'quantity'`: how many can be selected from options
+    - `'locked'`: `True` if `quantity == len(options)` (user cannot change selection)
+    """
+    parsed = []
+    for section, (options, quantity) in item_ref_ids.items():
+        if quantity > len(options):
+            raise ValueError(f"Quantity for section '{section}' cannot be greater than number of options.")
+
+        parsed_options = get_items_by_ids(options)
+        parsed.append({
+            'section': section,
+            'options': parsed_options,
+            'quantity': quantity,
+            'locked': quantity == len(parsed_options)
+        })
+    return parsed
