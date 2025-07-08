@@ -3,10 +3,9 @@ import sys
 
 def clear_console():
     """Clears the console screen"""
-    # 3J = Erases entire scrollback buffer output of the console
-    # H = Resets cursor to home position
-    # 2J = Clears the output of the visible console screen
-    print("\033[3J\033[H\033[2J", end="")
+    # 033 = Code for terminal controls
+    # C = Clears the console buffer output
+    print("\033c", end="")
 
 def split_item_code(item_code):
     """Splits an item code into its category code and category item number."""
@@ -17,7 +16,29 @@ def split_item_code(item_code):
         else: item_num += char
     return cat_code, item_num
 
-def display_topbar(options=None, selected_option: int = 0, top_line: str = ""):
+def display_modal(title: str, content: str, icon: str = "ℹ️", max_characters_before_newline: int = 50):
+    header = f"| {icon}   {title} |"
+    bar_line = f"+{'-' * (len(header) - 3)}+"
+    content_with_newline = ""
+    curr_line = ""
+
+    words = content.split(" ")
+    for i in range(len(words)):
+        curr_line += words[i] if curr_line == "" else " " + words[i]
+        if len(curr_line) >= max_characters_before_newline or i == len(words) - 1:
+            content_with_newline += "| " + curr_line + "\n"
+            curr_line = ""
+    clear_console()
+    print(bar_line)
+    print(header)
+    print(bar_line)
+    print(content_with_newline + "| ")
+    print("| [Enter] OK")
+    while True:
+        if handle_input() == "enter": break
+    clear_console()
+
+def display_topbar(options=None, selected_option: int = 0, top_line: str = ""): 
     """Shows a top bar with options given to the user"""
     if options is None: options = []
     converted_options = []

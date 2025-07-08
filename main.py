@@ -67,7 +67,11 @@ def handle_edit_combo(item_id: str):
     if sys.stdin.isatty():
         topbar_index = 0
         selection_index = 0
-        selected_indices = []
+        selected_data = [
+            list(range(len(parsed_item_ref_ids[i]["options"]))) if parsed_item_ref_ids[i]["locked"] else []
+            for i in range(len(parsed_item_ref_ids))
+        ]
+        selected_indices = selected_data[topbar_index - 1]
 
         def display_content():
             selection_length = 0
@@ -84,8 +88,18 @@ def handle_edit_combo(item_id: str):
                     ["Price", f"${item_info['price']:.2f}"]
                 ]
                 sections_table = [
-                    [section, "Not completed"]
-                    for section in sections
+                    [
+                        sections[i],
+                        (
+                            ", ".join([item["name"] for item in parsed_item_ref_ids[i]["options"]])
+                            if parsed_item_ref_ids[i]["locked"]
+                            else ", ".join([parsed_item_ref_ids[i]["options"][item_index]["name"] for item_index in selected_data[i]])
+                            if parsed_item_ref_ids[i]["quantity"] == len(selected_data[i])
+                            else f"ERROR: Cannot choose more than {parsed_item_ref_ids[i]['quantity']} items"
+                            if parsed_item_ref_ids[i]["quantity"] < len(selected_data[i]) else "Not completed"
+                        )
+                    ]
+                    for i in range(len(sections))
                 ]
                 display_table(info_table)
                 display_table(sections_table, ["Section", "Items"])
@@ -114,11 +128,11 @@ def handle_edit_combo(item_id: str):
                 if key == "left":
                     topbar_index = max(topbar_index - 1, 0)
                     selection_index = 0
-                    selected_indices = []
+                    selected_indices = selected_data[topbar_index - 1]
                 elif key == "right":
                     topbar_index = min(topbar_index + 1, len(uncompleted_sections))
                     selection_index = 0
-                    selected_indices = []
+                    selected_indices = selected_data[topbar_index - 1]
                 elif key == "up":
                     selection_index = max(selection_index - 1, 0)
                 elif key == "down":
@@ -133,7 +147,7 @@ def handle_edit_combo(item_id: str):
                             else:
                                 selected_indices.append(selection_index)
                 elif key == "enter":
-                    pass
+                    display_modal("Feature not implemented", "The enter key has not been implemented to save the combo meal. Sorry bro")
                 elif key == "q":
                     break
             # Clamp selection_index if item_table shrinks

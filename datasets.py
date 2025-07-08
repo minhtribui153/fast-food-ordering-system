@@ -33,7 +33,7 @@ MENU = [
     # Combos (for item reference ids, just only the alphabet id = any)
     {"id": "C01", "name": "Burger + Fries + Drink", "item_ref_ids": { "Burger": (["B"], 1), "Fries": (["S01"], 1), "Drink": (["D"], 1) }, "price": 8.80},
     {"id": "C02", "name": "Nuggets + Fries + Drink", "item_ref_ids": { "Nuggets": (["S03"], 1), "Fries": (["S01"], 1), "Drink": (["D"], 1)}, "price": 8.50},
-    {"id": "C03", "name": "Veggie Combo", "item_ref_ids": { "Main": (["B03"], 1), "Dessert": (["S04", "S04"], 1), "Drink": (["D04"], 1)}, "price": 8.20},
+    {"id": "C03", "name": "Veggie Combo", "item_ref_ids": { "Main": (["B03"], 1), "Dessert": (["S04"], 1), "Drink": (["D04"], 1)}, "price": 8.20},
     {"id": "C04", "name": "Kids Meal", "item_ref_ids": { "Main": (["S03", "S04"], 1), "Fries": (["S01"], 1), "Dessert": (["DS"], 1), "Drink": (["D01", "D02", "D04"], 1)}, "price": 6.50}
 ]
 
@@ -46,7 +46,7 @@ DISCOUNT_RATES = {
 def generate_item_table(items: list[dict]):
     """Returns a 2D list of items as a table"""
     return [
-        [item["id"], item["name"], item["price"]]
+        [item["id"], item["name"], f"${item["price"]:.2f}"]
         for item in items
     ]
 
