@@ -180,19 +180,19 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
     else:
         # Legacy Menu (use input and handle_ui_menu_selection)
         result = {}
-        for i, (section_name, section) in enumerate(item_info["item_ref_ids"].items()):
+        for i, section in enumerate(parsed_sections):
             if section.get("locked", False):
                 # Locked section, just show the options
-                print(f"Section '{section_name}' is locked. Items included:")
-                for opt_id in section["options"]:
-                    item = get_item_by_id(opt_id)
+                print(f"Section '{section["section"]}' is locked. Items included:")
+                for option in section["options"]:
+                    item = get_item_by_id(option["id"])
                     print(f" - {item['name']}")
-                result[section_name] = section["options"]
+                result[section["section"]] = section["options"]
             else:
                 while True:
                     chosen = []
                     # Use preselected if available
-                    pre = preselected.get(section_name, [])
+                    pre = preselected.get(section["section"], [])
                     for code in pre:
                         try:
                             idx = section["options"].index(code)
@@ -200,15 +200,15 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
                         except ValueError:
                             continue
                     while len(chosen) < section["quantity"]:
-                        print(f"Select {section['quantity']} item(s) for section '{section_name}':")
+                        print(f"Select {section['quantity']} item(s) for section '{section["section"]}':")
                         option_names = []
-                        for idx, opt_id in enumerate(section["options"]):
-                            item = get_item_by_id(opt_id)
+                        for idx, option in enumerate(section["options"]):
+                            item = get_item_by_id(option["id"])
                             selected_mark = "(selected)" if idx in chosen else ""
                             option_names.append(f"{item['name']} ${item['price']:.2f} {selected_mark}".strip())
                         # Use handle_ui_menu_selection for selection, with back button
                         sel = handle_ui_menu_selection(
-                            f"Choose option {len(chosen)+1} for '{section_name}'",
+                            f"Choose option {len(chosen)+1} for '{section["section"]}'",
                             options=option_names,
                             back_button=True
                         )
@@ -218,7 +218,7 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
                                 print("Already at the first section. Cannot go back further.")
                                 continue
                             # Remove previous section from result and restart from there
-                            prev_section_name = list(item_info["item_ref_ids"].keys())[i-1]
+                            prev_section_name = parsed_sections[i-1]["section"]
                             if prev_section_name in result:
                                 del result[prev_section_name]
                             # Restart the whole process from previous section
@@ -234,9 +234,9 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
                         else:
                             chosen.append(idx)
                     if len(chosen) != section["quantity"]:
-                        print(f"Error: You must select exactly {section['quantity']} item(s) for '{section_name}'.")
+                        print(f"Error: You must select exactly {section['quantity']} item(s) for '{section["section"]}'.")
                         continue
-                    result[section_name] = [section["options"][i] for i in chosen]
+                    result[section["section"]] = [section["options"][i] for i in chosen]
                     break
         return result
         
