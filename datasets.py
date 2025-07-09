@@ -57,7 +57,9 @@ def get_items_by_category_code(code: str):
 def get_item_by_id(item_id: str):
     """Gets an item by its item ID"""
     found = [item for item in MENU if item["id"] == item_id]
-    return found[0] if len(found) > 0 else None
+    if len(found) == 0:
+        raise Exception("Item not found")
+    return found[0]
 
 def get_items_by_ids(item_ids: list[str]):
     """

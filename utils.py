@@ -19,23 +19,34 @@ def split_item_code(item_code):
 def display_modal(title: str, content: str, icon: str = "ℹ️", max_characters_before_newline: int = 50):
     header = f"| {icon}   {title} |"
     bar_line = f"+{'-' * (len(header) - 3)}+"
-    content_with_newline = ""
-    curr_line = ""
 
-    words = content.split(" ")
-    for i in range(len(words)):
-        curr_line += words[i] if curr_line == "" else " " + words[i]
-        if len(curr_line) >= max_characters_before_newline or i == len(words) - 1:
-            content_with_newline += "| " + curr_line + "\n"
-            curr_line = ""
+    # Split content into lines first (to preserve explicit newlines)
+    lines = content.split('\n')
+    formatted_lines = []
+    for line in lines:
+        words = line.split(" ")
+        curr_line = ""
+        for i, word in enumerate(words):
+            if curr_line == "":
+                curr_line = word
+            elif len(curr_line) + 1 + len(word) > max_characters_before_newline:
+                formatted_lines.append(curr_line)
+                curr_line = word
+            else:
+                curr_line += " " + word
+        if curr_line != "":
+            formatted_lines.append(curr_line)
+
     clear_console()
     print(bar_line)
     print(header)
     print(bar_line)
-    print(content_with_newline + "| ")
-    print("| [Enter] OK")
+    for fl in formatted_lines:
+        print("| " + fl)
+    print("|\n| [Enter] OK")
     while True:
-        if handle_input() == "enter": break
+        if handle_input() == "enter":
+            break
     clear_console()
 
 def display_topbar(options=None, selected_option: int = 0, top_line: str = ""): 

@@ -50,110 +50,195 @@ def handle_ui_menu_selection(question: str, options: list, option_icons: list = 
             if sel.isdigit() and 1 <= int(sel) <= len(options):
                 return options[int(sel) - 1]
             print("Error: Invalid option!")
+            # Simplified and commented version of handle_edit_combo
 
-# Program logic
-def handle_edit_combo(item_id: str):
+def handle_edit_combo(item_id: str, preselected: dict = {}):
+    """
+    Allows editing of a combo meal by selecting items for each section.
+    Optionally takes a `preselected` dict mapping section names to lists of selected option indices.
+    """
     cat_code, _ = split_item_code(item_id)
-    if cat_code != "C": raise ValueError("Bro you are supposed to edit a combo meal.")
+    if cat_code != "C":
+        raise ValueError("Only combo meals can be edited.")
 
     item_info = get_item_by_id(item_id)
-    if not item_info: raise ValueError(f"Item with ID {item_id} not in Menu")
+    if not item_info:
+        raise ValueError(f"Item with ID {item_id} not in Menu")
 
-    [_, _, icon] = MENU_ITEM_IDS[cat_code]
-    parsed_item_ref_ids = parse_item_ref_ids(item_info["item_ref_ids"])
-    sections = list(item_info["item_ref_ids"].keys())
-    uncompleted_sections = [] + sections
+    # Get icon and parse combo sections
+    icon = MENU_ITEM_IDS[cat_code][2]
+    parsed_sections = parse_item_ref_ids(item_info["item_ref_ids"])
+    section_names = list(item_info["item_ref_ids"].keys())
+
+    # Prepare initial selection state
+    preselected = preselected or {}
+    selected = []
+    for i, section in enumerate(parsed_sections):
+        sec_name = section_names[i]
+        if section["locked"]:
+            selected.append(list(range(len(section["options"]))))
+        elif sec_name in preselected:
+            # Only accept valid indices
+            valid_indices = [idx for idx in preselected[sec_name] if 0 <= idx < len(section["options"])]
+            selected.append(valid_indices[:section["quantity"]])
+        else:
+            selected.append([])
 
     if sys.stdin.isatty():
-        topbar_index = 0
-        selection_index = 0
-        selected_data = [
-            list(range(len(parsed_item_ref_ids[i]["options"]))) if parsed_item_ref_ids[i]["locked"] else []
-            for i in range(len(parsed_item_ref_ids))
-        ]
-        selected_indices = selected_data[topbar_index - 1]
+        # UI state
+        tab = 0  # 0 = info, 1+ = section index
+        sel_idx = 0  # selection index within section
 
-        def display_content():
-            selection_length = 0
-            title = f"| {icon} Edit Combo Meal ({item_id}) |"
-            line = f"+{'-' * (len(title) - 1)}+" # - 1 more because of icon misalignment
+        def show():
+            """Display to console terminal and return num of items allowed to choose"""
             clear_console()
+            title = f"| {icon} Edit Combo Meal ({item_id}) |"
+            line = f"+{'-' * (len(title) - 1)}+"
+            allowed_items = 0
             print(line)
             print(title)
-            display_topbar(["Information"] + uncompleted_sections, topbar_index, top_line=line)
-            if topbar_index == 0:
-                selection_length = 0
-                info_table = [
-                    ["Name", item_info['name']],
-                    ["Price", f"${item_info['price']:.2f}"]
-                ]
-                sections_table = [
-                    [
-                        sections[i],
-                        (
-                            ", ".join([item["name"] for item in parsed_item_ref_ids[i]["options"]])
-                            if parsed_item_ref_ids[i]["locked"]
-                            else ", ".join([parsed_item_ref_ids[i]["options"][item_index]["name"] for item_index in selected_data[i]])
-                            if parsed_item_ref_ids[i]["quantity"] == len(selected_data[i])
-                            else f"ERROR: Cannot choose more than {parsed_item_ref_ids[i]['quantity']} items"
-                            if parsed_item_ref_ids[i]["quantity"] < len(selected_data[i]) else "Not completed"
-                        )
-                    ]
-                    for i in range(len(sections))
-                ]
-                display_table(info_table)
-                display_table(sections_table, ["Section", "Items"])
+            display_topbar(["Information"] + section_names, tab, top_line=line)
+            if tab == 0:
+                # Show combo info and current selections
+                info = [["Name", item_info['name']], ["Price", f"${item_info['price']:.2f}"]]
+                section_items = []
+                for i, section in enumerate(parsed_sections):
+                    if section["locked"]:
+                        chosen = ", ".join(item["name"] for item in section["options"])
+                    elif len(selected[i]) == section["quantity"]:
+                        chosen = ", ".join(section["options"][j]["name"] for j in selected[i])
+                    else:
+                        chosen = "(Not completed)"
+                    section_items.append([section_names[i], chosen, section["quantity"]])
+                display_table(info)
+                display_table(section_items, ["Section", "Item(s)", "Quantity"])
+                print()
             else:
-                selected_section = parsed_item_ref_ids[topbar_index - 1]
-                item_table = generate_item_table(selected_section["options"])
-                if selected_section["locked"]:
-                    selection_length = 0
-                    display_table(item_table, ["Item ID", "Item Name", "Price"])
-                    print(" (You are not allowed to make changes as this section is locked)")
+                # Show options for current section
+                section = parsed_sections[tab - 1]
+                items = generate_item_table(section["options"])
+                allowed_items = len(items)
+                if section["locked"]:
+                    display_table(items, ["Item ID", "Item Name", "Price"])
+                    print(" (Section is locked; cannot edit)")
+                    print()
                 else:
-                    selection_length = len(item_table)
-                    item_selection_table = [
-                        (["[X]"] + item_table[i]) if i in selected_indices
-                        else (["[ ]"] + item_table[i])
-                        for i in range(selection_length)
+                    # Show selectable items with checkboxes
+                    table = [
+                        (["[X]"] if i in selected[tab - 1] else ["[ ]"]) + list(row)
+                        for i, row in enumerate(items)
                     ]
-                    display_table(item_selection_table, ["", "Item ID", "Item Name", "Price"], selection_index)
-            return selection_length
+                    display_table(table, ["", "Item ID", "Item Name", "Price"], sel_idx)
+                    print()
+                    print("| [Spacebar] Select/Deselect item")
+                    print("| [Up/Down] Move dropdown cursor")
+            print("| [Left/Right] Select section")
+            print("| [Enter] Save changes")
+            print("| [Q] Back")
+            return allowed_items
 
         while True:
-            selection_length = display_content()
+            max_idx = show()
             key = handle_input()
-            if key in ["left", "right", "up", "down", "enter", "q", "spacebar"]:
-                # Clamp values for each key
-                if key == "left":
-                    topbar_index = max(topbar_index - 1, 0)
-                    selection_index = 0
-                    selected_indices = selected_data[topbar_index - 1]
-                elif key == "right":
-                    topbar_index = min(topbar_index + 1, len(uncompleted_sections))
-                    selection_index = 0
-                    selected_indices = selected_data[topbar_index - 1]
-                elif key == "up":
-                    selection_index = max(selection_index - 1, 0)
-                elif key == "down":
-                    selection_index = min(selection_index + 1, max(selection_length - 1, 0))
-                elif key == "spacebar":
-                    # Only allow selection if not on info tab and section is not locked
-                    if topbar_index > 0:
-                        selected_section = parsed_item_ref_ids[topbar_index - 1]
-                        if not selected_section["locked"] and 0 <= selection_index < selection_length:
-                            if selection_index in selected_indices:
-                                selected_indices.remove(selection_index)
-                            else:
-                                selected_indices.append(selection_index)
-                elif key == "enter":
-                    display_modal("Feature not implemented", "The enter key has not been implemented to save the combo meal. Sorry bro")
-                elif key == "q":
+            if key == "left":
+                tab = max(tab - 1, 0)
+                sel_idx = 0
+            elif key == "right":
+                tab = min(tab + 1, len(section_names))
+                sel_idx = 0
+            elif key == "up":
+                sel_idx = max(sel_idx - 1, 0)
+            elif key == "down":
+                sel_idx = min(sel_idx + 1, max(max_idx - 1, 0))
+            elif key == "spacebar" and tab > 0:
+                section = parsed_sections[tab - 1]
+                if not section["locked"] and 0 <= sel_idx < max_idx:
+                    if sel_idx in selected[tab - 1]:
+                        selected[tab - 1].remove(sel_idx)
+                    else:
+                        if len(selected[tab - 1]) < section["quantity"]:
+                            selected[tab - 1].append(sel_idx)
+            elif key == "enter":
+                # Validate selections
+                result = {}
+                incomplete_sections = []
+                for i, section in enumerate(parsed_sections):
+                    if len(selected[i]) < section["quantity"]:
+                        incomplete_sections.append(f">> {section['section']}")
+                    else:
+                        result[section["section"]] = [
+                            section["options"][j]["id"] for j in selected[i]
+                        ]
+                if not incomplete_sections:
+                    return result
+                display_modal("Action(s) required", f"You have not completed {len(incomplete_sections)} section(s):\n" + "\n".join(incomplete_sections), "⚠️", 100)
+            elif key == "q":
+                return None
+            # Clamp selection index
+            if sel_idx >= max_idx:
+                sel_idx = max(max_idx - 1, 0)
+    else:
+        # Legacy Menu (use input and handle_ui_menu_selection)
+        result = {}
+        for i, (section_name, section) in enumerate(item_info["item_ref_ids"].items()):
+            if section.get("locked", False):
+                # Locked section, just show the options
+                print(f"Section '{section_name}' is locked. Items included:")
+                for opt_id in section["options"]:
+                    item = get_item_by_id(opt_id)
+                    print(f" - {item['name']}")
+                result[section_name] = section["options"]
+            else:
+                while True:
+                    chosen = []
+                    # Use preselected if available
+                    pre = preselected.get(section_name, [])
+                    for code in pre:
+                        try:
+                            idx = section["options"].index(code)
+                            chosen.append(idx)
+                        except ValueError:
+                            continue
+                    while len(chosen) < section["quantity"]:
+                        print(f"Select {section['quantity']} item(s) for section '{section_name}':")
+                        option_names = []
+                        for idx, opt_id in enumerate(section["options"]):
+                            item = get_item_by_id(opt_id)
+                            selected_mark = "(selected)" if idx in chosen else ""
+                            option_names.append(f"{item['name']} ${item['price']:.2f} {selected_mark}".strip())
+                        # Use handle_ui_menu_selection for selection, with back button
+                        sel = handle_ui_menu_selection(
+                            f"Choose option {len(chosen)+1} for '{section_name}'",
+                            options=option_names,
+                            back_button=True
+                        )
+                        if sel == "Back":
+                            # Go back to previous section if possible
+                            if i == 0:
+                                print("Already at the first section. Cannot go back further.")
+                                continue
+                            # Remove previous section from result and restart from there
+                            prev_section_name = list(item_info["item_ref_ids"].keys())[i-1]
+                            if prev_section_name in result:
+                                del result[prev_section_name]
+                            # Restart the whole process from previous section
+                            return handle_edit_combo(item_id, preselected)
+                        # Find the index of the selected option
+                        try:
+                            idx = option_names.index(sel)
+                        except ValueError:
+                            print("Invalid selection.")
+                            continue
+                        if idx in chosen:
+                            print("Already selected.")
+                        else:
+                            chosen.append(idx)
+                    if len(chosen) != section["quantity"]:
+                        print(f"Error: You must select exactly {section['quantity']} item(s) for '{section_name}'.")
+                        continue
+                    result[section_name] = [section["options"][i] for i in chosen]
                     break
-            # Clamp selection_index if item_table shrinks
-            if selection_index >= selection_length:
-                selection_index = max(selection_length - 1, 0)
-
+        return result
         
 
 def handle_food_menu():
