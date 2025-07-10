@@ -17,12 +17,13 @@ def split_item_code(item_code):
     return cat_code, item_num
 
 def display_modal(title: str, content: str, icon: str = "ℹ️", max_characters_before_newline: int = 50):
-    header = f"| {icon}   {title} |"
-    bar_line = f"+{'-' * (len(header) - 3)}+"
+    header = f"| {icon}  {title} |"
+    bar_line = f"+{'-' * (len(header) - 2)}+"
 
     # Split content into lines first (to preserve explicit newlines)
     lines = content.split('\n')
     formatted_lines = []
+    old_stdout = sys.stdout
     for line in lines:
         words = line.split(" ")
         curr_line = ""
@@ -48,6 +49,7 @@ def display_modal(title: str, content: str, icon: str = "ℹ️", max_characters
         if handle_input() == "enter":
             break
     clear_console()
+    sys.stdout = old_stdout
 
 def display_topbar(options=None, selected_option: int = 0, top_line: str = ""): 
     """Shows a top bar with options given to the user"""
@@ -83,7 +85,7 @@ def display_table(data: list[list[str]], headers: list[str] = [], selected_index
 
 
 def handle_input():
-    """Detect key inputs (arrows, enter, space, alphanum) cross-platform."""
+    """Detect key inputs (arrows, enter, space, backspace, alphanum, plus, minus) cross-platform."""
     if sys.platform.startswith('win'):
         msvcrt = __import__("msvcrt")
         while True:
@@ -93,6 +95,9 @@ def handle_input():
                 return {'H': 'up', 'P': 'down', 'K': 'left', 'M': 'right'}.get(ch2.decode(), None)
             if ch == b'\r': return 'enter'
             if ch == b' ': return 'spacebar'
+            if ch in (b'\x08', b'\x7f'): return 'backspace'  # Backspace (Windows)
+            if ch == b'-': return 'minus'
+            if ch == b'+': return 'plus'
             ch = ch.decode()
             if ch.isalnum() or ch == " ": return ch
     else:
@@ -108,6 +113,9 @@ def handle_input():
                     return {'A': 'up', 'B': 'down', 'C': 'right', 'D': 'left'}.get(sys.stdin.read(1), None)
                 if ch in ('\r', '\n'): return 'enter'
                 if ch == " ": return 'spacebar'
+                if ch in ('\x08', '\x7f'): return 'backspace'  # Backspace (Unix)
+                if ch == '-': return 'minus'
+                if ch == '+': return 'plus'
                 if ch.isalnum(): return ch
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
