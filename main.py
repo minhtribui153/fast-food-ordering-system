@@ -1,4 +1,4 @@
-RESTAURANT_NAME = "🍽  Soviet Union Restaurant"
+RESTAURANT_NAME = "Soviet Union Restaurant"
 CART = []
 
 import sys
@@ -20,7 +20,7 @@ def handle_ui_integer_selection(question: str, allowed_min: int = -sys.maxsize, 
             print(f"    | [Enter] Confirm")
             if back_button:
                 print(f"    | [Q] Back")
-            print(f"    | Note: Use numbers to type, minus symbol to negate")
+            print(f"    | 💡 Use numbers to type, minus symbol to negate")
         while True:
             show()
             key = handle_input()
@@ -59,23 +59,43 @@ def handle_ui_integer_selection(question: str, allowed_min: int = -sys.maxsize, 
                     return None
                 converted_value = int(value)
                 if converted_value < allowed_min:
-                    print(f"Error: Value cannot be below {allowed_min}")
+                    print(f"❌ Value cannot be below {allowed_min}")
                 elif converted_value > allowed_max:
-                    print(f"Error: Value cannot be above {allowed_max}")
+                    print(f"❌ Value cannot be above {allowed_max}")
                 else:
                     return converted_value
             except ValueError:
-                print("Error: Value must be an integer")
+                print("❌ Value must be an integer")
 
-def handle_ui_menu_selection(question: str, options: list, option_icons: list = [], back_button: bool = False):
+def handle_ui_menu_selection(
+        question: str,
+        options: list,
+        option_icons: list = [],
+        back_button: bool = False,
+        confirm_button: bool = False,
+        next_button: bool = False
+    ):
     """Handles menu selection UI"""
+    # Utility button icons
     back_icon = "⬅️"
+    confirm_icon = "✅"
+    next_icon = "➡️"
     if not options:
         raise RuntimeError("Options cannot be empty")
     if option_icons and len(option_icons) != len(options):
         raise RuntimeError("Length of option_icons must match options")
-    ui_options = options[:] + (["Back"] if back_button else [])
-    ui_icons = (option_icons[:] if option_icons else [""] * len(options)) + ([back_icon] if back_button else [])
+    ui_options = (
+        options[:]
+        + (["Confirm"] if back_button else [])
+        + (["Next"] if next_button else [])
+        + (["Back"] if confirm_button else [])
+    )
+    ui_icons = ((
+        option_icons[:] if option_icons else [""] * len(options))
+        + ([confirm_icon] if confirm_button else [])
+        + ([next_icon] if next_button else [])
+        + ([back_icon] if back_button else [])
+    )
     if sys.stdin.isatty():
         idx, last_lines = 0, 0
         while True:
@@ -98,20 +118,25 @@ def handle_ui_menu_selection(question: str, options: list, option_icons: list = 
         for _ in range(last_lines):
             sys.stdout.write('\x1b[1A\x1b[2K')
         sys.stdout.flush()
-        return ui_options[idx]
+        # Utility buttons
+        if ui_options[idx] == "Back": return "back"
+        if ui_options[idx] == "Next": return "next"
+        if ui_options[idx] == "Confirm": return "confirm"
+        return idx
     else:
         while True:
             print(question)
             for i, (opt, icon) in enumerate(zip(options, ui_icons)):
                 print(f"({i+1}) {icon + ' ' if icon else ''}{opt}")
-            if back_button:
-                print(f"(B) {back_icon} Back")
+            if confirm_button: print(f"(C) {confirm_icon} Confirm")
+            if next_button: print(f"(N) {next_icon} Next")
+            if back_button: print(f"(B) {back_icon} Back")
             sel = input(">> ")
-            if sel == "B" and back_button:
-                return "Back"
-            if sel.isdigit() and 1 <= int(sel) <= len(options):
-                return options[int(sel) - 1]
-            print("Error: Invalid option!")
+            if sel == "C" and confirm_button: return "confirm"
+            if sel == "N" and next_button: return "next"
+            if sel == "B" and back_button: return "back"
+            if sel.isdigit() and 1 <= int(sel) <= len(options): return int(sel) - 1
+            print("❌ Invalid option!")
             # Simplified and commented version of handle_edit_combo
 
 # User interface functions
@@ -146,7 +171,7 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
             selected.append(list(range(len(section["options"]))))
         elif sec_name in preselected:
             # Only accept valid indices
-            valid_indices = [idx for idx in preselected[sec_name] if 0 <= idx < len(section["options"])]
+            valid_indices = [section["options"].index(item) for item in preselected[sec_name] if item in section["options"]]
             selected.append(valid_indices[:section["quantity"]])
         else:
             selected.append([])
@@ -246,64 +271,66 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
                 sel_idx = max(max_idx - 1, 0)
     else:
         # Legacy Menu (use input and handle_ui_menu_selection)
-        result = {}
-        for i, section in enumerate(parsed_sections):
+        result = preselected
+        current_selection_index = 0
+        back = False
+        while current_selection_index < len(parsed_sections):
+            if back:
+                current_selection_index -= 1
+                if current_selection_index < 0: return None
+                back = False
+                continue
+            section = parsed_sections[current_selection_index]
+            print("-" * 20)
+            print(f"[ℹ️ Section {current_selection_index + 1}] {section["section"]}")
             if section.get("locked", False):
                 # Locked section, just show the options
-                print(f"Section '{section["section"]}' is locked. Items included:")
+                print(f"🔒 This section is locked. Items included:")
                 for option in section["options"]:
                     item = get_item_by_id(option["id"])
                     print(f" - {item['name']}")
                 result[section["section"]] = section["options"]
+                selected = handle_ui_menu_selection(
+                    "What do you want to do?",
+                    ["Next Section", "Previous Section"],
+                    ["➡️", "⬅️"]
+                )
+                back = selected == 1
             else:
+                chosen = []
+                # Add saved data from result if any
+                chosen += result.get(section["section"], [])
+
+                # Do the selection part
+                print(f"💡 You are allowed to select {section['quantity']} items for this section.")
                 while True:
-                    chosen = []
-                    # Use preselected if available
-                    pre = preselected.get(section["section"], [])
-                    for code in pre:
-                        try:
-                            idx = section["options"].index(code)
-                            chosen.append(idx)
-                        except ValueError:
-                            continue
-                    while len(chosen) < section["quantity"]:
-                        print(f"Select {section['quantity']} item(s) for section '{section["section"]}':")
-                        option_names = []
-                        for idx, option in enumerate(section["options"]):
-                            item = get_item_by_id(option["id"])
-                            selected_mark = "(selected)" if idx in chosen else ""
-                            option_names.append(f"{item['name']} ${item['price']:.2f} {selected_mark}".strip())
-                        # Use handle_ui_menu_selection for selection, with back button
-                        sel = handle_ui_menu_selection(
-                            f"Choose option {len(chosen)+1} for '{section["section"]}'",
-                            options=option_names,
-                            back_button=True
-                        )
-                        if sel == "Back":
-                            # Go back to previous section if possible
-                            if i == 0:
-                                return None
-                            # Remove previous section from result and restart from there
-                            prev_section_name = parsed_sections[i-1]["section"]
-                            if prev_section_name in result:
-                                del result[prev_section_name]
-                            # Restart the whole process from previous section
-                            return handle_edit_combo(item_id, preselected)
-                        # Find the index of the selected option
-                        try:
-                            idx = option_names.index(sel)
-                        except ValueError:
-                            print("Invalid selection.")
-                            continue
-                        if idx in chosen:
-                            print("Already selected.")
-                        else:
-                            chosen.append(idx)
-                    if len(chosen) != section["quantity"]:
-                        print(f"Error: You must select exactly {section['quantity']} item(s) for '{section["section"]}'.")
-                        continue
-                    result[section["section"]] = [section["options"][i] for i in chosen]
-                    break
+                    option_names = []
+                    for idx, option in enumerate(section["options"]):
+                        selected_mark = "✳️" if option["id"] in chosen else "⬛"
+                        option_names.append(f"{selected_mark} [{option["id"]}] {option['name']} (${option['price']:.2f})".strip())
+                    # Use handle_ui_menu_selection for selection, with back button
+                    sel = handle_ui_menu_selection(
+                        f"Please select",
+                        options=option_names,
+                        back_button=True,
+                        confirm_button=True
+                    )
+                    if sel == "confirm":
+                        break
+                    if sel == "back":
+                        back = True
+                        break
+                    # Find the index of the selected option
+                    selected_code = section["options"][sel]["id"]
+                    if selected_code in chosen:
+                        chosen.remove(selected_code)
+                    else:
+                        chosen.append(selected_code)
+                if len(chosen) != section["quantity"] and not back:
+                    print(f"❌ You must select exactly {section['quantity']} item(s) for '{section["section"]}'")
+                    continue
+                result[section["section"]] = chosen
+            if not back: current_selection_index += 1
         return result
         
 def handle_food_menu(skip_to_order: bool = False):
@@ -365,7 +392,7 @@ def handle_food_menu(skip_to_order: bool = False):
                 back_button=True
             )
 
-            if chosen_option == "Browse Menu":
+            if chosen_option == 0:
                 while True:
                     chosen_category = handle_ui_menu_selection(
                         "Select a category",
@@ -377,21 +404,22 @@ def handle_food_menu(skip_to_order: bool = False):
                     code = list(MENU_ITEM_IDS.keys())[header_categories.index(chosen_category)]
                     item_table = generate_item_table(get_items_by_category_code(code))
                     display_table(item_table, ["Item ID", "Item Name", "Price"])
-            elif chosen_option == "Order":
+            elif chosen_option == 1:
                 item_ids = [item_id["id"] for item_id in MENU]
                 while True:
-                    print("| Enter the item ID you would like to order")
-                    print("| (or leave blank to go back)")
-                    item_id = input("| >> ")
+                    print("-" * 20)
+                    print("Enter the item ID you would like to order")
+                    print("(or leave blank to go back)")
+                    item_id = input(">> ")
 
                     if item_id == "":
                         break # Exit this loop, but goes back to the main food menu
                     elif item_id in item_ids:
                         return item_id # Returns the item_id
                     
-                    print("Invalid item ID!")
-                    print("If you have forgotten the item ID, you can go back and use the Browse Menu option.")
-            elif chosen_option == "Back": break
+                    print("❌ Invalid item ID!")
+                    print("💡 If you have forgotten the item ID, you can go back and use the Browse Menu option.")
+            elif chosen_option == "back": break
 
 # Main code
 
@@ -400,7 +428,7 @@ def handle_food_menu(skip_to_order: bool = False):
 title_header = "| " + RESTAURANT_NAME + " |"
 bar_header = f"+{'-' * (len(title_header) - 2)}+"
 while True:
-    clear_console()
+    if sys.stdin.isatty(): clear_console()
     print(bar_header)
     print(title_header)
     print(bar_header)
@@ -410,7 +438,7 @@ while True:
         option_icons=["🔍", "🛒", "💳", "🚪"]
     )
 
-    if tab_selection == "Browse and Order":
+    if tab_selection == 0:
         selected_item = handle_food_menu()
         if selected_item == None:
             continue
@@ -421,30 +449,41 @@ while True:
             if code == "C":
                 # Enable combo editing
                 combo_selected_data = handle_edit_combo(selected_item, combo_preselected_data)
-                if combo_selected_data == None:
+                if combo_selected_data is None:
                     selected_item = handle_food_menu(True)
-                    if selected_item == None:
+                    if selected_item is None:
                         # Since user chooses to go back break this loop to go back to the main loop
                         break
                     continue
                 combo_preselected_data = combo_selected_data
             quantity = handle_ui_integer_selection(f"Please enter quantity for item {selected_item}:", back_button=True)
-            if quantity == None:
+            if quantity is None:
                 if code != "C":
                     # If it is not a combo meal go back to menu selection
                     selected_item = handle_food_menu(True)
-                    if selected_item == None:
+                    if selected_item is None:
                         # Since user chooses to go back break this loop to go back to the main loop
                         break
                 continue
-            # store into an order variable
-            order: dict[str, dict | str] = { "code": selected_item }
+            # Store into an order variable
+            added_item = get_item_by_id(selected_item)
+            order: dict[str, dict | str] = { "id": selected_item, "name": added_item["name"] }
             if code == "C":
                 order["options"] = combo_preselected_data
+            CART.append(order)
+            # Display added to cart message
+            if sys.stdin.atty():
+                display_modal(
+                    "Added to Cart",
+                    f"Successfully added this item to cart:\n - ({order["id"]}) {order["name"]}",
+                    "✅",
+                )
+            else:
+                print(f"✅ Successfully added ({order["id"]}) {order["name"]} to cart")
             completed = True
         if not completed: continue
-    elif tab_selection == "View and Edit cart": print("Not yet")
-    elif tab_selection == "Checkout": print("Not yet")
+    elif tab_selection == 1: print("Not yet")
+    elif tab_selection == 2: print("Not yet")
     else:
         print("👋 Goodbye!")
         time.sleep(1)
