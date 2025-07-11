@@ -1,5 +1,6 @@
 RESTAURANT_NAME = "Soviet Union Restaurant"
 CART = []
+LEGACY = False
 
 import sys
 
@@ -9,9 +10,10 @@ import time
 
 # Helper functions
 
-def handle_ui_integer_selection(question: str, allowed_min: int = -sys.maxsize, allowed_max: int = sys.maxsize, default: int = 0, back_button: bool = False):
+def handle_ui_integer_selection(question: str, allowed_min: int = -sys.maxsize, allowed_max: int = sys.maxsize, back_button: bool = False):
     """Handles integer selection UI"""
     if sys.stdin.isatty():
+        default = allowed_min if allowed_min > 0 else 0
         selected_number = default
         def show():
             clear_console()
@@ -42,11 +44,14 @@ def handle_ui_integer_selection(question: str, allowed_min: int = -sys.maxsize, 
                 try:
                     selected_number = int(curr_string)
                 except ValueError:
-                    selected_number = 0
+                    selected_number = default
             elif key == "enter":
                 return selected_number
             elif key == "minus":
-                selected_number = min(-selected_number, allowed_min)
+                if selected_number > 0:
+                    selected_number = max(-selected_number, allowed_min)
+                else:
+                    selected_number = min(-selected_number, allowed_max)
             elif key == "q" and back_button:
                 return None
     else:
@@ -456,7 +461,12 @@ while True:
                         break
                     continue
                 combo_preselected_data = combo_selected_data
-            quantity = handle_ui_integer_selection(f"Please enter quantity for item {selected_item}:", back_button=True)
+            quantity = handle_ui_integer_selection(
+                f"Please enter quantity for item {selected_item}:",
+                allowed_min=1,
+                allowed_max=100,
+                back_button=True
+            )
             if quantity is None:
                 if code != "C":
                     # If it is not a combo meal go back to menu selection
@@ -467,19 +477,19 @@ while True:
                 continue
             # Store into an order variable
             added_item = get_item_by_id(selected_item)
-            order: dict[str, dict | str] = { "id": selected_item, "name": added_item["name"] }
+            order: dict[str, dict | str | int] = { "id": selected_item, "name": added_item["name"], "quantity": quantity }
             if code == "C":
                 order["options"] = combo_preselected_data
             CART.append(order)
             # Display added to cart message
-            if sys.stdin.atty():
+            if sys.stdin.isatty():
                 display_modal(
                     "Added to Cart",
-                    f"Successfully added this item to cart:\n - ({order["id"]}) {order["name"]}",
+                    f"Successfully added this item to cart:\n - ({order["id"]}) {order["name"]}\n - Quantity: {quantity}",
                     "✅",
                 )
             else:
-                print(f"✅ Successfully added ({order["id"]}) {order["name"]} to cart")
+                print(f"✅ Successfully added {quantity} item{"s" if quantity > 1 else ""} of ({order["id"]}) {order["name"]} to cart")
             completed = True
         if not completed: continue
     elif tab_selection == 1: print("Not yet")
