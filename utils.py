@@ -16,9 +16,22 @@ def split_item_code(item_code):
         else: item_num += char
     return cat_code, item_num
 
-def display_modal(title: str, content: str, icon: str = "ℹ️", max_characters_before_newline: int = 50):
-    header = f"| {icon}  {title} |"
-    bar_line = f"+{'-' * (len(header) - 2)}+"
+def colourize_text(text: str, color="white"):
+    """Colourizes text for console terminals"""
+    colors = ["black", "red", "green", "yellow", "blue", "purple", "cyan", "white"]
+    # \033 counts as 1 character
+    # returns: (string with colourized text with length, character offset for UI design)
+    return f"\033[0;3{colors.index(color)}m{text}\033[0m", 11
+
+def display_modal(title: str, content: str, report_type: str = "info", max_characters_before_newline: int = 50):
+    if report_type == "info": icon, color, offset = "ℹ️", "blue", 3
+    elif report_type == "warning": icon, color, offset = "⚠️", "yellow", 3
+    elif report_type == "success": icon, color, offset = "✅", "green", 1
+    elif report_type == "error": icon, color, offset = "❌", "red", 1
+    else: raise ValueError("report_type must be info, warning, error, or success!")
+    colourized_title, char_offset = colourize_text(title, color)
+    header = f"| {icon}  {colourized_title} |"
+    bar_line = f"+{'-' * (len(header) - offset - char_offset)}+"
 
     # Split content into lines first (to preserve explicit newlines)
     lines = content.split('\n')

@@ -1,4 +1,5 @@
 RESTAURANT_NAME = "Soviet Union Restaurant"
+ALLOWED_ORDERS_PER_ITEM = 100
 CART = []
 LEGACY = False
 
@@ -147,11 +148,75 @@ def handle_ui_menu_selection(
 # User interface functions
 
 def handle_edit_cart():
-    pass
+    """
+    Handles viewing and editing the items inside the user cart
+    """
+    if len(CART) == 0:
+        if sys.stdin.isatty():
+            display_modal("No items in Cart", (
+                "There are currently no items in your cart. "
+                "Please order an item through the Browse and Order section in order to view this section"
+            ), max_characters_before_newline=60)
+        else:
+            print("ℹ️ There are currently no items in your cart.")
+        return
+    
+    if sys.stdin.isatty():
+        table_headers = ["", "Index", "Code", "Name", "Price", "Quantity", "Total"]
+        selected_indexes = []
+        current_index = 0
+        def show():
+            """Display to console terminal and return num of items allowed to choose"""
+            clear_console()
+            display_table([
+                [   ("[X]" if i in selected_indexes else "[ ]"),
+                    str(i), CART[i]["id"], CART[i]["name"],
+                    f"${CART[i]["item_price"]:.2f}",
+                    (f"- {CART[i]["quantity"]:^{len(table_headers[5])}} +" if current_index == i else f"  {CART[i]["quantity"]:^{len(table_headers[5])}}  "),
+                    f"${CART[i]["item_price"] * CART[i]["quantity"]:.2f}"
+                ]
+                for i in range(len(CART))
+            ], table_headers, selected_index=current_index)
+        
+        while True:
+            show()
+            key = handle_input()
+            if key == "left":
+                CART[current_index]["quantity"] = max(CART[current_index]["quantity"] - 1, 1)
+            elif key == "right":
+                CART[current_index]["quantity"] = min(CART[current_index]["quantity"] + 1, ALLOWED_ORDERS_PER_ITEM)
+            elif key == "up":
+                current_index = max(current_index - 1, 0)
+            elif key == "down":
+                current_index = min(current_index + 1, len(CART) - 1)
+            elif key == "spacebar":
+                if current_index in selected_indexes:
+                    selected_indexes.remove(current_index)
+                else:
+                    selected_indexes.append(current_index)
+            elif key == "enter":
+                current = CART[current_index]
+                # Edit a combo meal
+                category_code, _ = split_item_code(current["id"])
+                if category_code == "C":
+                    # Enable combo editing
+                    combo_selected_data = handle_edit_combo(current["id"], current["options"])
+                    if combo_selected_data is None:
+                        continue
+                    CART[current_index]["options"] = combo_selected_data
+                    display_modal(
+                        "Saved changes to Cart",
+                        f"Successfully saved new item data to cart:\n - ({order["id"]}) {order["name"]}",
+                        "success",
+                    )
+                else:
+                    display_modal("Cannot edit item", f"({current["id"]}) {current["name"]} is an à-la-carte item. You can only edit combo items.", "error")
+            elif key == "q":
+                return None
 
 def handle_edit_combo(item_id: str, preselected: dict = {}):
     """
-    Allows editing of a combo meal by selecting items for each section.
+    Handles editing of a combo meal by selecting items for each section.
     Optionally takes a `preselected` dict mapping section names to lists of selected option indices.
     """
     cat_code, _ = split_item_code(item_id)
@@ -174,10 +239,10 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
         sec_name = section_names[i]
         if section["locked"]:
             selected.append(list(range(len(section["options"]))))
-        elif sec_name in preselected:
-            # Only accept valid indices
-            valid_indices = [section["options"].index(item) for item in preselected[sec_name] if item in section["options"]]
-            selected.append(valid_indices[:section["quantity"]])
+        elif sec_name in preselected.keys():
+            # Only accept valid items
+            valid_indices = [i for i in range(len(section["options"])) if section["options"][i]["id"] in preselected[sec_name]]
+            selected.append(valid_indices)
         else:
             selected.append([])
 
@@ -268,7 +333,7 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
                         ]
                 if not incomplete_sections:
                     return result
-                display_modal("Action(s) required", f"You have not completed {len(incomplete_sections)} section(s):\n" + "\n".join(incomplete_sections), "⚠️", 100)
+                display_modal("Action(s) required", f"You have not completed {len(incomplete_sections)} section(s):\n" + "\n".join(incomplete_sections), "warning", 100)
             elif key == "q":
                 return None
             # Clamp selection index
@@ -464,7 +529,7 @@ while True:
             quantity = handle_ui_integer_selection(
                 f"Please enter quantity for item {selected_item}:",
                 allowed_min=1,
-                allowed_max=100,
+                allowed_max=ALLOWED_ORDERS_PER_ITEM,
                 back_button=True
             )
             if quantity is None:
@@ -477,7 +542,7 @@ while True:
                 continue
             # Store into an order variable
             added_item = get_item_by_id(selected_item)
-            order: dict[str, dict | str | int] = { "id": selected_item, "name": added_item["name"], "quantity": quantity }
+            order: dict[str, dict | str | int] = { "id": selected_item, "name": added_item["name"], "item_price": added_item["price"], "quantity": quantity }
             if code == "C":
                 order["options"] = combo_preselected_data
             CART.append(order)
@@ -486,13 +551,13 @@ while True:
                 display_modal(
                     "Added to Cart",
                     f"Successfully added this item to cart:\n - ({order["id"]}) {order["name"]}\n - Quantity: {quantity}",
-                    "✅",
+                    "success",
                 )
             else:
                 print(f"✅ Successfully added {quantity} item{"s" if quantity > 1 else ""} of ({order["id"]}) {order["name"]} to cart")
             completed = True
         if not completed: continue
-    elif tab_selection == 1: print("Not yet")
+    elif tab_selection == 1: handle_edit_cart()
     elif tab_selection == 2: print("Not yet")
     else:
         print("👋 Goodbye!")
