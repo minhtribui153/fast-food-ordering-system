@@ -1,4 +1,4 @@
-RESTAURANT_NAME = "Soviet Union Restaurant"
+RESTAURANT_NAME = "Obama Fried Chicken"
 ALLOWED_ORDERS_PER_ITEM = 100
 CART = []
 LEGACY = False
@@ -162,7 +162,7 @@ def handle_edit_cart():
         return
     
     if sys.stdin.isatty():
-        table_headers = ["", "Index", "Code", "Name", "Price", "Quantity", "Total"]
+        table_headers = ["", "Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
         selected_indexes = []
         current_index = 0
         def show():
@@ -170,7 +170,8 @@ def handle_edit_cart():
             clear_console()
             display_table([
                 [   ("[X]" if i in selected_indexes else "[ ]"),
-                    str(i), CART[i]["id"], CART[i]["name"],
+                    str(i + 1), CART[i]["id"],
+                    MENU_ITEM_IDS[split_item_code(CART[i]["id"])[0]][1], CART[i]["name"],
                     f"${CART[i]["item_price"]:.2f}",
                     (f"- {CART[i]["quantity"]:^{len(table_headers[5])}} +" if current_index == i else f"  {CART[i]["quantity"]:^{len(table_headers[5])}}  "),
                     f"${CART[i]["item_price"] * CART[i]["quantity"]:.2f}"
@@ -213,6 +214,22 @@ def handle_edit_cart():
                     display_modal("Cannot edit item", f"({current["id"]}) {current["name"]} is an à-la-carte item. You can only edit combo items.", "error")
             elif key == "q":
                 return None
+    else:
+        table_headers = ["Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
+        def show():
+            """Output items in cart"""
+            display_table([
+                [
+                    str(i + 1), CART[i]["id"],
+                    MENU_ITEM_IDS[split_item_code(CART[i]["id"])[0]][1], CART[i]["name"],
+                    f"${CART[i]["item_price"]:.2f}",
+                    CART[i]["quantity"],
+                    f"${CART[i]["item_price"] * CART[i]["quantity"]:.2f}"
+                ]
+                for i in range(len(CART))
+            ], table_headers)
+        while True:
+            show()
 
 def handle_edit_combo(item_id: str, preselected: dict = {}):
     """
@@ -470,8 +487,8 @@ def handle_food_menu(skip_to_order: bool = False):
                         option_icons=header_category_icons,
                         back_button=True
                     )
-                    if chosen_category not in header_categories: break
-                    code = list(MENU_ITEM_IDS.keys())[header_categories.index(chosen_category)]
+                    if chosen_category == "back": break
+                    code = list(MENU_ITEM_IDS.keys())[chosen_category]
                     item_table = generate_item_table(get_items_by_category_code(code))
                     display_table(item_table, ["Item ID", "Item Name", "Price"])
             elif chosen_option == 1:

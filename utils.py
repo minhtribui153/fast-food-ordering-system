@@ -25,7 +25,7 @@ def colourize_text(text: str, color="white"):
 
 def display_modal(title: str, content: str, report_type: str = "info", max_characters_before_newline: int = 50):
     if report_type == "info": icon, color, offset = "ℹ️", "blue", 3
-    elif report_type == "warning": icon, color, offset = "⚠️", "yellow", 3
+    elif report_type == "warning": icon, color, offset = "⚠️", "yellow", 2
     elif report_type == "success": icon, color, offset = "✅", "green", 1
     elif report_type == "error": icon, color, offset = "❌", "red", 1
     else: raise ValueError("report_type must be info, warning, error, or success!")
