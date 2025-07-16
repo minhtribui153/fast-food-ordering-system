@@ -1,10 +1,8 @@
 RESTAURANT_NAME = "Obama Fried Chicken"
 ALLOWED_ORDERS_PER_ITEM = 100
 CART = []
-LEGACY = False
 
 import sys
-
 from datasets import *
 from utils import *
 
