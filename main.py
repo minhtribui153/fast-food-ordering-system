@@ -161,15 +161,14 @@ def handle_edit_cart():
             print("ℹ️ There are currently no items in your cart.")
         return
     
+    table_headers = ["Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
     if sys.stdin.isatty():
-        table_headers = ["", "Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
-        selected_indexes = []
         current_index = 0
         def show():
             """Display to console terminal and return num of items allowed to choose"""
             clear_console()
             display_table([
-                [   ("[X]" if i in selected_indexes else "[ ]"),
+                [
                     str(i + 1), CART[i]["id"],
                     MENU_ITEM_IDS[split_item_code(CART[i]["id"])[0]][1], CART[i]["name"],
                     f"${CART[i]["item_price"]:.2f}",
@@ -190,11 +189,6 @@ def handle_edit_cart():
                 current_index = max(current_index - 1, 0)
             elif key == "down":
                 current_index = min(current_index + 1, len(CART) - 1)
-            elif key == "spacebar":
-                if current_index in selected_indexes:
-                    selected_indexes.remove(current_index)
-                else:
-                    selected_indexes.append(current_index)
             elif key == "enter":
                 current = CART[current_index]
                 # Edit a combo meal
@@ -212,10 +206,19 @@ def handle_edit_cart():
                     )
                 else:
                     display_modal("Cannot edit item", f"({current["id"]}) {current["name"]} is an à-la-carte item. You can only edit combo items.", "error")
+            elif key == "backspace":
+                CART.pop(current_index)
+                current_index = 0
+                if len(CART) == 0:
+                    display_modal("No items in Cart", (
+                        "There are currently no items in your cart. "
+                        "Please order an item through the Browse and Order section in order to view this section"
+                    ), max_characters_before_newline=60)
+                    break
+
             elif key == "q":
                 return None
     else:
-        table_headers = ["Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
         def show():
             """Output items in cart"""
             display_table([
@@ -488,7 +491,7 @@ def handle_food_menu(skip_to_order: bool = False):
                         back_button=True
                     )
                     if chosen_category == "back": break
-                    code = list(MENU_ITEM_IDS.keys())[chosen_category]
+                    code = list(MENU_ITEM_IDS.keys())[int(chosen_category)]
                     item_table = generate_item_table(get_items_by_category_code(code))
                     display_table(item_table, ["Item ID", "Item Name", "Price"])
             elif chosen_option == 1:
@@ -509,7 +512,6 @@ def handle_food_menu(skip_to_order: bool = False):
             elif chosen_option == "back": break
 
 # Main code
-
 
 # Just to make restaurant title nicer
 title_header = "| " + RESTAURANT_NAME + " |"
@@ -562,7 +564,28 @@ while True:
             order: dict[str, dict | str | int] = { "id": selected_item, "name": added_item["name"], "item_price": added_item["price"], "quantity": quantity }
             if code == "C":
                 order["options"] = combo_preselected_data
-            CART.append(order)
+            
+            overflow = False
+            found_similar_item = False
+            for i in range(len(CART)):
+                if compare_orders(order, CART[i]):
+                    total_quantity = CART[i]["quantity"] + order["quantity"]
+                    if total_quantity > ALLOWED_ORDERS_PER_ITEM:
+                        overflow = True
+                        if sys.stdin.isatty():
+                            display_modal(
+                                "Order overflow",
+                                f"You have reached to {total_quantity} orders for this item. Maximum orders allowed for each item is {ALLOWED_ORDERS_PER_ITEM}.",
+                                "error"
+                            )
+                        else:
+                            print(f"❌ You ordered {total_quantity} of this item. Max is {ALLOWED_ORDERS_PER_ITEM}.")
+                    else:
+                        CART[i]["quantity"] += order["quantity"]
+                        found_similar_item = True
+            
+            if overflow: continue
+            if not found_similar_item: CART.append(order)
             # Display added to cart message
             if sys.stdin.isatty():
                 display_modal(

@@ -16,6 +16,15 @@ def split_item_code(item_code):
         else: item_num += char
     return cat_code, item_num
 
+def compare_orders(item1, item2):
+    cat_code1 = split_item_code(item1["id"])
+    if item1["id"] != item2["id"]: return False
+    elif cat_code1 == "C":
+        for key in item1["item_ref_ids"].keys():
+            if set(item1["item_ref_ids"][key]) != set(item2["item_ref_ids"][key]):
+                return False
+    return True
+
 def colourize_text(text: str, color="white"):
     """Colourizes text for console terminals"""
     colors = ["black", "red", "green", "yellow", "blue", "purple", "cyan", "white"]
