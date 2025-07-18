@@ -1,5 +1,6 @@
 
 import sys
+from datetime import datetime
 
 def clear_console():
     """Clears the console screen"""

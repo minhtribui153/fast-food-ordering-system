@@ -1,4 +1,5 @@
 RESTAURANT_NAME = "Obama Fried Chicken"
+GST = 0.09
 ALLOWED_ORDERS_PER_ITEM = 100
 CART = []
 
@@ -310,7 +311,7 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
                     incomplete_sections.append(f">> {section['section']}")
                 else:
                     result[section["section"]] = [
-                        section["options"][j]["id"] for j in selected[i]
+                        section["options"][j]["id"] for j in selected[i] # j is the selected index
                     ]
             if not incomplete_sections:
                 return result

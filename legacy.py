@@ -1,12 +1,97 @@
+# Government Details
+GST = 0.09
+# Restaurant Details
 RESTAURANT_NAME = "Obama Fried Chicken"
+ADDRESS = "#01-234 Serangoon Central, 23, Singapore 556083"
+PHONE_NUMBER = "+65 9012 3456"
+WEBSITE = "https://obama-fried-chicken.com.sg"
 ALLOWED_ORDERS_PER_ITEM = 100
-CART = []
 
 import sys
 from datasets import *
 from utils import *
 
+# Work
+CART = []
+
+
 # Helper functions
+def print_high_end_receipt(discount: float = 0.0):
+    # --- Helper for truncation ---
+    def condense(text, max_len):
+        return text if len(text) <= max_len else text[:max_len-3] + "..."
+
+    # --- Table Format Specs ---
+    col_id = 5
+    col_name = 17    # name field display width
+    col_type = 12
+    col_price = 9
+    col_qty = 4
+    col_desc = 20    # description
+
+    # Set headers accordingly
+    header_fields = f"{'No.':<3} {'ID':<{col_id}} {'Name':<{col_name}} {'Description':<{col_desc}} {'Type':>{col_type}} {'Price':>{col_price}} {'Qty':>{col_qty}}"
+    receipt_width = len(header_fields)
+
+    # --- Calculations ---
+    subtotal = sum(item["item_price"] * item["quantity"] for item in CART)
+    discount_amt = round(subtotal * discount, 2)
+    discounted_subtotal = subtotal - discount_amt
+    gst = round(discounted_subtotal * GST, 2)
+    total = round(discounted_subtotal + gst, 2)
+    now = datetime.now().strftime("%d %b %Y   %H:%M")
+
+    # --- Print Header ---
+    print(f"\n{RESTAURANT_NAME:^{receipt_width}}")
+    print(f"{ADDRESS:^{receipt_width}}")
+    print(f"{'Tel: ' + PHONE_NUMBER:^{receipt_width}}")
+    print(f"{WEBSITE:^{receipt_width}}")
+    print("-" * receipt_width)
+    print(f"Date: {now}")
+    print("-" * receipt_width)
+
+    # --- Table Body ---
+    print(header_fields)
+    print("-" * receipt_width)
+    for i, item in enumerate(CART, 1):
+        type_str = "Combo" if "options" in item else "À la carte"
+        # Truncate name and description
+        disp_name = condense(item.get('name', ''), col_name)
+        disp_desc = condense(item.get('description', ''), col_desc)
+        print(f"{i:<3} {item['id']:<{col_id}} {disp_name:<{col_name}} {disp_desc:<{col_desc}} {type_str:>{col_type}} "
+              f"{item['item_price']:>{col_price}.2f} {item['quantity']:>{col_qty}}")
+
+        # Options (for combos)
+        if "options" in item:
+            spaces = " " * (col_id + col_name + 6)
+            for option_name, ids in item["options"].items():
+                print(spaces + f"{condense(option_name, 12)}:")
+                count = 1
+                current_id = ""
+                for item_id in ids:
+                    # Check for similarity to display quantity
+                    if current_id == item_id: count += 1
+                    else:
+                        count = 1
+                        current_id = item_id
+                    option_item_name = condense(str(count) + " " + get_item_by_id(item_id)['name'], col_name)
+                    print(spaces + f"{option_item_name}")
+    print("-" * receipt_width)
+
+    # --- Totals ---
+    print(f"{'Subtotal:':<{receipt_width - 10}}{subtotal:>10.2f}")
+    if discount > 0.0:
+        print(f"{f'Discount {discount*100:.0f}%:':<{receipt_width - 10}}-{discount_amt:>9.2f}")
+    print(f"{f'GST {GST*100:.0f}%:':<{receipt_width - 10}}{gst:>10.2f}")
+    print("-" * receipt_width)
+    print(f"{'TOTAL:':<{receipt_width - 10}}{total:>10.2f}")
+    print("-" * receipt_width)
+
+    # Footer
+    print()
+    print(f"{'Thank you for dining with us!':^{receipt_width}}")
+    print(f"{'We hope to see you again.':^{receipt_width}}\n")
+
 
 def handle_ui_integer_selection(question: str, allowed_min: int = -sys.maxsize, allowed_max: int = sys.maxsize, back_button: bool = False):
     """Handles integer selection UI"""
@@ -83,6 +168,7 @@ def handle_edit_cart():
     table_headers = ["Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
     def show():
         """Output items in cart"""
+        print(CART)
         display_table([
             [
                 str(i + 1), CART[i]["id"],
@@ -95,7 +181,7 @@ def handle_edit_cart():
         ], table_headers)
     while True:
         show()
-        print("Select items their indices separated by commas or B to go back.")
+        print("Select items by their indices separated by commas or B to go back.")
         inputs = input(">> ").split(",")
         if len(inputs) == 0:
             print("💡 To go back, type B and press enter.")
@@ -121,13 +207,14 @@ def handle_edit_cart():
                 else:
                     print(f"Please fix these {len(inputs) - len(indices)} errors in your input.")
                 break
-        
-            print("What would you like to do?")
-            print("(C)hange quantity")
-            print("(E)Edit item")
-            print("(D)elete item(s)")
-            print("(B)ack")
-            action = input(">> ").upper()
+            
+
+            action = handle_ui_menu_selection(
+                "What would you like to do?",
+                ["Change quantity", "Edit item", "Delete item(s)"],
+                ["↔️ ", "✏️ ", "🗑️ "],
+                back_button=True
+            )
             if action not in ['C', 'E', 'D', 'B']: print("❌ Invalid option!")
             elif action == "C":
                 new_quantity = handle_ui_integer_selection("Please type in the new quantity.", allowed_min=1, allowed_max=100, back_button=True)
@@ -204,7 +291,7 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
             for option in section["options"]:
                 item = get_item_by_id(option["id"])
                 print(f" - {item['name']}")
-            result[section["section"]] = section["options"]
+            result[section["section"]] = [item["id"] for item in section["options"]]
             selected = handle_ui_menu_selection(
                 "What do you want to do?",
                 ["Next Section", "Previous Section"],
@@ -246,6 +333,31 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
             result[section["section"]] = chosen
         if not back: current_selection_index += 1
     return result
+
+def handle_checkout():
+    """Handles the checkout menu system"""
+    if len(CART) == 0:
+        print("❌ No items to pay. Please order an item before proceeding to checkout.")
+        return None
+    
+    identity = handle_ui_menu_selection(
+        "Please select your identity:",
+        options=["Student", "Staff", "Loyalty Member", "I am not any one of these"],
+        option_icons=["🎓 ", "💼 ", "💎 ", "❌ "],
+        back_button=True
+    )
+
+    if identity == 0: discount_rate = DISCOUNT_RATES["student"]
+    elif identity == 1: discount_rate = DISCOUNT_RATES["staff"]
+    elif identity == 2: discount_rate = DISCOUNT_RATES["loyalty_member"]
+    elif identity == 3: discount_rate = 0.0
+    else: return None
+    
+    print("Printing receipt...")
+    print_high_end_receipt(discount_rate)
+    exit(0)
+
+
         
 def handle_food_menu(skip_to_order: bool = False):
     header_categories = [MENU_ITEM_IDS[code][1] for code in MENU_ITEM_IDS.keys()]
@@ -363,7 +475,7 @@ while True:
             completed = True
         if not completed: continue
     elif tab_selection == 1: handle_edit_cart()
-    elif tab_selection == 2: print("Not yet")
+    elif tab_selection == 2: handle_checkout()
     else:
         print("👋 Goodbye!")
         break
