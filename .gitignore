@@ -4,3 +4,4 @@ dist
 __pycache__
 .idea
 main.spec
+project_todo.md

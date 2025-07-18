@@ -7,41 +7,196 @@ PHONE_NUMBER = "+65 9012 3456"
 WEBSITE = "https://obama-fried-chicken.com.sg"
 ALLOWED_ORDERS_PER_ITEM = 100
 
+# Print Receipt Details
+WIDTH_RECEIPT_TABLE_COLUMN_ID = 5
+WIDTH_RECEIPT_TABLE_COLUMN_NAME = 17    # name field display width
+WIDTH_RECEIPT_TABLE_COLUMN_TYPE = 12
+WIDTH_RECEIPT_TABLE_COLUMN_PRICE = 9
+WIDTH_RECEIPT_TABLE_COLUMN_QUANTITY = 4
+WIDTH_RECEIPT_TABLE_COLUMN_DESCRIPTION = 20
+
 import sys
 from datasets import *
-from utils import *
 
-# Work
-CART = []
+# Datasets and dataset functions
+from utils import split_item_code
+from datetime import datetime
 
+# { id: (noun_name, plural_name, icon) }
+MENU_ITEM_IDS = {
+    "B": ("Burger", "Burgers", "🍔"),
+    "S": ("Side", "Sides", "🍟"),
+    "D": ("Drink", "Drinks", "🥤"),
+    "DS": ("Dessert", "Desserts", "🍦"),
+    "C": ("Combo", "Combos", "🥡")
+}
 
-# Helper functions
-def print_high_end_receipt(discount: float = 0.0):
-    # --- Helper for truncation ---
-    def condense(text, max_len):
-        return text if len(text) <= max_len else text[:max_len-3] + "..."
+MENU = [
+    # Burgers
+    {"id": "B01", "name": "Classic Beef Burger", "price": 5.50},
+    {"id": "B02", "name": "Chicken Burger", "price": 5.00},
+    {"id": "B03", "name": "Veggie Burger", "price": 4.80},
+    {"id": "B04", "name": "Spicy Chicken Burger", "price": 5.30},
+    # Sides
+    {"id": "S01", "name": "French Fries", "price": 2.50},
+    {"id": "S02", "name": "Onion Rings", "price": 2.80},
+    {"id": "S03", "name": "Chicken Nuggets (6pc)", "price": 3.50},
+    {"id": "S04", "name": "Cheese Sticks (4pc)", "price": 3.20},
+    # Drinks
+    {"id": "D01", "name": "Coke", "price": 1.80},
+    {"id": "D02", "name": "Sprite", "price": 1.80},
+    {"id": "D03", "name": "Ice lemon Tea", "price": 2.20},
+    {"id": "D04", "name": "Mineral water", "price": 1.50},
+    # Desserts
+    {"id": "DS01", "name": "Chocolate sundae", "price": 2.80},
+    {"id": "DS02", "name": "Vanilla cone", "price": 1.50},
+    {"id": "DS03", "name": "Apple pie", "price": 2.30},
+    {"id": "DS04", "name": "Strawberry sundae", "price": 2.80},
+    # Combos (for item reference ids, just only the alphabet id = any)
+    {"id": "C01", "name": "Burger + Fries + Drink", "item_ref_ids": { "Burger": (["B"], 1), "Fries": (["S01"], 1), "Drink": (["D"], 1) }, "price": 8.80},
+    {"id": "C02", "name": "Nuggets + Fries + Drink", "item_ref_ids": { "Nuggets": (["S03"], 1), "Fries": (["S01"], 1), "Drink": (["D"], 1)}, "price": 8.50},
+    {"id": "C03", "name": "Veggie Combo", "item_ref_ids": { "Main": (["B03"], 1), "Dessert": (["S04"], 1), "Drink": (["D04"], 1)}, "price": 8.20},
+    {"id": "C04", "name": "Kids Meal", "item_ref_ids": { "Main": (["S03", "S04"], 1), "Fries": (["S01"], 1), "Dessert": (["DS"], 1), "Drink": (["D01", "D02", "D04"], 1)}, "price": 6.50}
+]
 
-    # --- Table Format Specs ---
-    col_id = 5
-    col_name = 17    # name field display width
-    col_type = 12
-    col_price = 9
-    col_qty = 4
-    col_desc = 20    # description
+DISCOUNT_RATES = {
+    "student": 0.10,
+    "staff": 0.08,
+    "loyalty_member": 0.05
+}
+
+def generate_item_table(items: list[dict]):
+    """Returns a 2D list of items as a table"""
+    return [
+        [item["id"], item["name"], f"${item["price"]:.2f}"]
+        for item in items
+    ]
+
+def get_items_by_category_code(code: str):
+    """Gets an item by category code"""
+    return [item for item in MENU if split_item_code(item["id"])[0] == code]
+
+def get_item_by_id(item_id: str):
+    """Gets an item by its item ID"""
+    found = [item for item in MENU if item["id"] == item_id]
+    if len(found) == 0:
+        raise Exception("Item not found")
+    return found[0]
+
+def get_items_by_ids(item_ids: list[str]):
+    """
+    Gets items by their ids specified
+    if category_code only: Retrieves all items containing the specified category code
+    """
+    result = []
+    for item_id in item_ids:
+        [cat_code, item_num] = split_item_code(item_id)
+        if item_num == "":
+            result.extend(get_items_by_category_code(cat_code))
+        else:
+            result.append(get_item_by_id(item_id))
+    return result
+
+def parse_item_ref_ids(item_ref_ids: dict) -> list:
+    """
+    Parses the item_ref_ids dictionary from a combo meal.
+    Returns a list of dictionaries with section as key and a dict as value:
+    ```python
+    {
+        'section': str,
+        'options': [...],
+        'quantity': int,
+        'locked': bool
+        ...
+    }
+    ```
+    - `'options'`: `list` of item IDs or category codes available for selection
+    - `'quantity'`: how many can be selected from options
+    - `'locked'`: `True` if `quantity == len(options)` (user cannot change selection)
+    """
+    parsed = []
+    for section, (options, quantity) in item_ref_ids.items():
+        if quantity > len(options):
+            raise ValueError(f"Quantity for section '{section}' cannot be greater than number of options.")
+
+        parsed_options = get_items_by_ids(options)
+        parsed.append({
+            'section': section,
+            'options': parsed_options,
+            'quantity': quantity,
+            'locked': quantity == len(parsed_options)
+        })
+    return parsed
+
+# Utility functions
+def condense(text, max_len):
+    """Truncates text for better display on screen to prevent misalignment"""
+    return text if len(text) <= max_len else text[:max_len-3] + "..."
+
+def split_item_code(item_code):
+    """Splits an item code into its category code and category item number."""
+    cat_code = ''
+    item_num = ''
+    for char in item_code:
+        if char.isalpha(): cat_code += char
+        else: item_num += char
+    return cat_code, item_num
+
+def compare_orders(item1, item2):
+    cat_code1 = split_item_code(item1["id"])
+    if item1["id"] != item2["id"]: return False
+    elif cat_code1 == "C":
+        for key in item1["item_ref_ids"].keys():
+            if set(item1["item_ref_ids"][key]) != set(item2["item_ref_ids"][key]):
+                return False
+    return True
+
+def display_table(data: list[list[str]], headers: list[str] = [], selected_index: int = -1, tab_space: int = 4):
+    """Prints a formatted table (compatible with interactive menu selection)"""
+    # Calculate max width for each column
+    col_widths = [max(len(str(cell)) for cell in col) for col in zip(*([headers] + data if headers else data))]
+    # Helper function to format a row
+    def fmt_row(row): return "|" + "|".join(f" {str(cell):<{w}} " for cell, w in zip(row, col_widths)) + "|"
+    # Helper function to format a line
+    def fmt_line(): return "+" + "+".join("-" * (w + 2) for w in col_widths) + "+"
+    padding = " " * tab_space if selected_index > -1 else ""
+    if len(headers) > 0:
+        print(padding, fmt_line())
+        print(padding, fmt_row(headers))
+    print(padding, fmt_line())
+    for i, row in enumerate(data):
+        # Highlight selected row if needed
+        if selected_index > -1 and i == selected_index: print(f"{'> ':>{tab_space}}", fmt_row(row), "<")
+        else: print(padding, fmt_row(row))
+    print(padding, fmt_line())
+
+# User data variables
+cart = []
+
+# Handling functions
+def print_receipt(discount: float = 0.0):
+    """Prints a receipt containing the items ordered as well as calculation"""
+    # Name too long, convert to smaller variables for cleaner code
+    col_id = WIDTH_RECEIPT_TABLE_COLUMN_ID
+    col_name = WIDTH_RECEIPT_TABLE_COLUMN_NAME
+    col_type = WIDTH_RECEIPT_TABLE_COLUMN_TYPE
+    col_price = WIDTH_RECEIPT_TABLE_COLUMN_PRICE
+    col_qty = WIDTH_RECEIPT_TABLE_COLUMN_QUANTITY
+    col_desc = WIDTH_RECEIPT_TABLE_COLUMN_DESCRIPTION
 
     # Set headers accordingly
     header_fields = f"{'No.':<3} {'ID':<{col_id}} {'Name':<{col_name}} {'Description':<{col_desc}} {'Type':>{col_type}} {'Price':>{col_price}} {'Qty':>{col_qty}}"
     receipt_width = len(header_fields)
 
-    # --- Calculations ---
-    subtotal = sum(item["item_price"] * item["quantity"] for item in CART)
+    # Calculations
+    subtotal = sum(item["item_price"] * item["quantity"] for item in cart)
     discount_amt = round(subtotal * discount, 2)
     discounted_subtotal = subtotal - discount_amt
     gst = round(discounted_subtotal * GST, 2)
     total = round(discounted_subtotal + gst, 2)
     now = datetime.now().strftime("%d %b %Y   %H:%M")
 
-    # --- Print Header ---
+    # Print Header
     print(f"\n{RESTAURANT_NAME:^{receipt_width}}")
     print(f"{ADDRESS:^{receipt_width}}")
     print(f"{'Tel: ' + PHONE_NUMBER:^{receipt_width}}")
@@ -50,10 +205,10 @@ def print_high_end_receipt(discount: float = 0.0):
     print(f"Date: {now}")
     print("-" * receipt_width)
 
-    # --- Table Body ---
+    # Table Body
     print(header_fields)
     print("-" * receipt_width)
-    for i, item in enumerate(CART, 1):
+    for i, item in enumerate(cart, 1):
         type_str = "Combo" if "options" in item else "À la carte"
         # Truncate name and description
         disp_name = condense(item.get('name', ''), col_name)
@@ -78,7 +233,7 @@ def print_high_end_receipt(discount: float = 0.0):
                     print(spaces + f"{option_item_name}")
     print("-" * receipt_width)
 
-    # --- Totals ---
+    # Display calculations
     print(f"{'Subtotal:':<{receipt_width - 10}}{subtotal:>10.2f}")
     if discount > 0.0:
         print(f"{f'Discount {discount*100:.0f}%:':<{receipt_width - 10}}-{discount_amt:>9.2f}")
@@ -155,29 +310,23 @@ def handle_edit_cart():
     """
     Handles viewing and editing the items inside the user cart
     """
-    if len(CART) == 0:
-        if sys.stdin.isatty():
-            display_modal("No items in Cart", (
-                "There are currently no items in your cart. "
-                "Please order an item through the Browse and Order section in order to view this section"
-            ), max_characters_before_newline=60)
-        else:
-            print("ℹ️ There are currently no items in your cart.")
+    if len(cart) == 0:
+        print("ℹ️ There are currently no items in your cart.")
         return
     
     table_headers = ["Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
     def show():
         """Output items in cart"""
-        print(CART)
+        print(cart)
         display_table([
             [
-                str(i + 1), CART[i]["id"],
-                MENU_ITEM_IDS[split_item_code(CART[i]["id"])[0]][1], CART[i]["name"],
-                f"${CART[i]["item_price"]:.2f}",
-                CART[i]["quantity"],
-                f"${CART[i]["item_price"] * CART[i]["quantity"]:.2f}"
+                str(i + 1), cart[i]["id"],
+                MENU_ITEM_IDS[split_item_code(cart[i]["id"])[0]][1], cart[i]["name"],
+                f"${cart[i]["item_price"]:.2f}",
+                cart[i]["quantity"],
+                f"${cart[i]["item_price"] * cart[i]["quantity"]:.2f}"
             ]
-            for i in range(len(CART))
+            for i in range(len(cart))
         ], table_headers)
     while True:
         show()
@@ -219,22 +368,22 @@ def handle_edit_cart():
             elif action == "C":
                 new_quantity = handle_ui_integer_selection("Please type in the new quantity.", allowed_min=1, allowed_max=100, back_button=True)
                 if new_quantity:
-                    for i in indices: CART[i]["quantity"] = new_quantity
+                    for i in indices: cart[i]["quantity"] = new_quantity
                     break
             elif action == "E":
                 if len(indices) > 1: print("❌ You can only edit 1 item at a time.")
-                elif split_item_code(CART[indices[0]]["id"])[0] != "C": print("❌ Cannot edit à la carte items. You can only edit combo items.")
+                elif split_item_code(cart[indices[0]]["id"])[0] != "C": print("❌ Cannot edit à la carte items. You can only edit combo items.")
                 else:
-                    combo_selected_data = handle_edit_combo(CART[indices[0]]["id"], CART[indices[0]]["options"])
+                    combo_selected_data = handle_edit_combo(cart[indices[0]]["id"], cart[indices[0]]["options"])
                     if combo_selected_data:
-                        CART[indices[0]]["options"] = combo_selected_data
+                        cart[indices[0]]["options"] = combo_selected_data
                         break
             elif action == "D":
                 # Follow last index first method: Prevent errors from being raised when delete action is used
                 # Sort out indices in descending order
                 indices.sort(reverse=True)
-                for i in indices: CART.pop(i)
-                if len(CART) == 0:
+                for i in indices: cart.pop(i)
+                if len(cart) == 0:
                     print("ℹ️ There are currently no items in your cart.")
                     return None
                 break
@@ -335,8 +484,8 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
     return result
 
 def handle_checkout():
-    """Handles the checkout menu system"""
-    if len(CART) == 0:
+    """Handles the checkout menu system, exits after printing receipt"""
+    if len(cart) == 0:
         print("❌ No items to pay. Please order an item before proceeding to checkout.")
         return None
     
@@ -354,10 +503,8 @@ def handle_checkout():
     else: return None
     
     print("Printing receipt...")
-    print_high_end_receipt(discount_rate)
+    print_receipt(discount_rate)
     exit(0)
-
-
         
 def handle_food_menu(skip_to_order: bool = False):
     header_categories = [MENU_ITEM_IDS[code][1] for code in MENU_ITEM_IDS.keys()]
@@ -458,18 +605,18 @@ while True:
             
             overflow = False
             found_similar_item = False
-            for i in range(len(CART)):
-                if compare_orders(order, CART[i]):
-                    total_quantity = CART[i]["quantity"] + order["quantity"]
+            for i in range(len(cart)):
+                if compare_orders(order, cart[i]):
+                    total_quantity = cart[i]["quantity"] + order["quantity"]
                     if total_quantity > ALLOWED_ORDERS_PER_ITEM:
                         overflow = True
                         print(f"❌ You ordered {total_quantity} of this item. Max is {ALLOWED_ORDERS_PER_ITEM}.")
                     else:
-                        CART[i]["quantity"] += order["quantity"]
+                        cart[i]["quantity"] += order["quantity"]
                         found_similar_item = True
             
             if overflow: continue
-            if not found_similar_item: CART.append(order)
+            if not found_similar_item: cart.append(order)
             # Display added to cart message
             print(f"✅ Successfully added {quantity} item{"s" if quantity > 1 else ""} of ({order["id"]}) {order["name"]} to cart")
             completed = True
