@@ -25,7 +25,6 @@ if not sys.stdin.isatty():
     exit(1)
 
 # Datasets and dataset functions
-from utils import split_item_code
 from datetime import datetime
 
 # { id: (noun_name, plural_name, icon) }

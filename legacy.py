@@ -16,10 +16,8 @@ WIDTH_RECEIPT_TABLE_COLUMN_QUANTITY = 4
 WIDTH_RECEIPT_TABLE_COLUMN_DESCRIPTION = 20
 
 import sys
-from datasets import *
 
 # Datasets and dataset functions
-from utils import split_item_code
 from datetime import datetime
 
 # { id: (noun_name, plural_name, icon) }
