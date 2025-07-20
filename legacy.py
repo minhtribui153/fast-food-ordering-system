@@ -162,6 +162,7 @@ def display_table(data: list[list[str]], headers: list[str] = [], selected_index
         print(padding, fmt_line())
         print(padding, fmt_row(headers))
     print(padding, fmt_line())
+    # enumerate() gives an iteration with both indexes and the element for each element
     for i, row in enumerate(data):
         # Highlight selected row if needed
         if selected_index > -1 and i == selected_index: print(f"{'> ':>{tab_space}}", fmt_row(row), "<")
@@ -183,11 +184,15 @@ def print_receipt(discount: float = 0.0):
     col_desc = WIDTH_RECEIPT_TABLE_COLUMN_DESCRIPTION
 
     # Set headers accordingly
-    header_fields = f"{'No.':<3} {'ID':<{col_id}} {'Name':<{col_name}} {'Description':<{col_desc}} {'Type':>{col_type}} {'Price':>{col_price}} {'Qty':>{col_qty}}"
+    header_fields = (
+        f"{'No.':<3} {'ID':<{col_id}} {'Name':<{col_name}} "
+        f"{'Description':<{col_desc}} {'Type':>{col_type}} "
+        f"{'Price':>{col_price}} {'Qty':>{col_qty}}"
+    )
     receipt_width = len(header_fields)
 
     # Calculations
-    subtotal = sum(item["item_price"] * item["quantity"] for item in cart)
+    subtotal = sum(item["price"] * item["quantity"] for item in cart)
     discount_amt = round(subtotal * discount, 2)
     discounted_subtotal = subtotal - discount_amt
     gst = round(discounted_subtotal * GST, 2)
@@ -212,7 +217,7 @@ def print_receipt(discount: float = 0.0):
         disp_name = condense(item.get('name', ''), col_name)
         disp_desc = condense(item.get('description', ''), col_desc)
         print(f"{i:<3} {item['id']:<{col_id}} {disp_name:<{col_name}} {disp_desc:<{col_desc}} {type_str:>{col_type}} "
-              f"{item['item_price']:>{col_price}.2f} {item['quantity']:>{col_qty}}")
+              f"{item['price']:>{col_price}.2f} {item['quantity']:>{col_qty}}")
 
         # Options (for combos)
         if "options" in item:
@@ -282,12 +287,7 @@ def handle_ui_menu_selection(
         raise RuntimeError("Options cannot be empty")
     if option_icons and len(option_icons) != len(options):
         raise RuntimeError("Length of option_icons must match options")
-    ui_icons = ((
-        option_icons[:] if option_icons else [""] * len(options))
-        + ([confirm_icon] if confirm_button else [])
-        + ([next_icon] if next_button else [])
-        + ([back_icon] if back_button else [])
-    )
+    ui_icons = option_icons if len(option_icons) > 0 else [""] * len(options)
     while True:
         print(question)
         for i, (opt, icon) in enumerate(zip(options, ui_icons)):
@@ -320,12 +320,13 @@ def handle_edit_cart():
             [
                 str(i + 1), cart[i]["id"],
                 MENU_ITEM_IDS[split_item_code(cart[i]["id"])[0]][1], cart[i]["name"],
-                f"${cart[i]["item_price"]:.2f}",
+                f"${cart[i]["price"]:.2f}",
                 cart[i]["quantity"],
-                f"${cart[i]["item_price"] * cart[i]["quantity"]:.2f}"
+                f"${cart[i]["price"] * cart[i]["quantity"]:.2f}"
             ]
             for i in range(len(cart))
         ], table_headers)
+        print(f"Total: ${sum(item["price"] * item["quantity"] for item in cart):.2f}")
     while True:
         show()
         print("Select items by their indices separated by commas or B to go back.")
@@ -417,7 +418,6 @@ def handle_edit_combo(item_id: str, preselected: dict = {}):
             selected.append(valid_indices)
         else:
             selected.append([])
-
     
     # Legacy Menu (use input and handle_ui_menu_selection)
     result = preselected
@@ -597,7 +597,7 @@ while True:
                 continue
             # Store into an order variable
             added_item = get_item_by_id(selected_item)
-            order: dict[str, dict | str | int] = { "id": selected_item, "name": added_item["name"], "item_price": added_item["price"], "quantity": quantity }
+            order: dict[str, dict | str | int] = { "id": selected_item, "name": added_item["name"], "price": added_item["price"], "quantity": quantity }
             if code == "C":
                 order["options"] = combo_preselected_data
             

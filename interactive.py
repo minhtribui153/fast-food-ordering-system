@@ -297,7 +297,7 @@ def print_receipt(discount: float = 0.0):
     receipt_width = len(header_fields)
 
     # Calculations
-    subtotal = sum(item["item_price"] * item["quantity"] for item in cart)
+    subtotal = sum(item["price"] * item["quantity"] for item in cart)
     discount_amt = round(subtotal * discount, 2)
     discounted_subtotal = subtotal - discount_amt
     gst = round(discounted_subtotal * GST, 2)
@@ -322,7 +322,7 @@ def print_receipt(discount: float = 0.0):
         disp_name = condense(item.get('name', ''), col_name)
         disp_desc = condense(item.get('description', ''), col_desc)
         print(f"{i:<3} {item['id']:<{col_id}} {disp_name:<{col_name}} {disp_desc:<{col_desc}} {type_str:>{col_type}} "
-              f"{item['item_price']:>{col_price}.2f} {item['quantity']:>{col_qty}}")
+              f"{item['price']:>{col_price}.2f} {item['quantity']:>{col_qty}}")
 
         # Options (for combos)
         if "options" in item:
@@ -466,14 +466,11 @@ def handle_edit_cart():
     Handles viewing and editing the items inside the user cart
     """
     if len(cart) == 0:
-        if sys.stdin.isatty():
-            display_modal("No items in Cart", (
-                "There are currently no items in your cart. "
-                "Please order an item through the Browse and Order section in order to view this section"
-            ), max_characters_before_newline=60)
-        else:
-            print("ℹ️ There are currently no items in your cart.")
-        return
+        display_modal("No items in Cart", (
+            "There are currently no items in your cart. "
+            "Please order an item through the Browse and Order section in order to view this section"
+        ), max_characters_before_newline=60)
+        return None
     
     table_headers = ["Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
     current_index = 0
@@ -484,12 +481,14 @@ def handle_edit_cart():
             [
                 str(i + 1), cart[i]["id"],
                 MENU_ITEM_IDS[split_item_code(cart[i]["id"])[0]][1], cart[i]["name"],
-                f"${cart[i]["item_price"]:.2f}",
+                f"${cart[i]["price"]:.2f}",
                 (f"- {cart[i]["quantity"]:^{len(table_headers[5])}} +" if current_index == i else f"  {cart[i]["quantity"]:^{len(table_headers[5])}}  "),
-                f"${cart[i]["item_price"] * cart[i]["quantity"]:.2f}"
+                f"${cart[i]["price"] * cart[i]["quantity"]:.2f}"
             ]
             for i in range(len(cart))
         ], table_headers, selected_index=current_index)
+        print("---")
+        print(f"Total: ${sum(item["price"] * item["quantity"] for item in cart):.2f}")
         print("---")
         print("[Up/Down arrows] Move selection cursor")
         print("[Left/Right arrows] Update quantity")
@@ -783,7 +782,7 @@ while True:
                 continue
             # Store into an order variable
             added_item = get_item_by_id(selected_item)
-            order: dict[str, dict | str | int] = { "id": selected_item, "name": added_item["name"], "item_price": added_item["price"], "quantity": quantity }
+            order: dict[str, dict | str | int] = { "id": selected_item, "name": added_item["name"], "price": added_item["price"], "quantity": quantity }
             if code == "C":
                 order["options"] = combo_preselected_data
             
