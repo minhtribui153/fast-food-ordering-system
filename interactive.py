@@ -682,7 +682,6 @@ def handle_checkout():
     
     print("Printing receipt...")
     print_receipt(discount_rate)
-    exit(0)
 
 def handle_food_menu():
     header_categories = [MENU_ITEM_IDS[code][1] for code in MENU_ITEM_IDS.keys()]
@@ -813,7 +812,11 @@ while True:
             completed = True
         if not completed: continue
     elif tab_selection == 1: handle_edit_cart()
-    elif tab_selection == 2: handle_checkout()
+    elif tab_selection == 2:
+        handle_checkout()
+        print("--- Press enter to exit the program")
+        while handle_input() != "enter": continue
+        break
     else:
         print("👋 Goodbye!")
         time.sleep(1)

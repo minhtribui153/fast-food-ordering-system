@@ -16,7 +16,6 @@ WIDTH_RECEIPT_TABLE_COLUMN_QUANTITY = 4
 WIDTH_RECEIPT_TABLE_COLUMN_DESCRIPTION = 20
 
 import sys
-
 # Datasets and dataset functions
 from datetime import datetime
 
@@ -500,7 +499,6 @@ def handle_checkout():
     
     print("Printing receipt...")
     print_receipt(discount_rate)
-    exit(0)
         
 def handle_food_menu(skip_to_order: bool = False):
     header_categories = [MENU_ITEM_IDS[code][1] for code in MENU_ITEM_IDS.keys()]
@@ -618,7 +616,11 @@ while True:
             completed = True
         if not completed: continue
     elif tab_selection == 1: handle_edit_cart()
-    elif tab_selection == 2: handle_checkout()
+    elif tab_selection == 2:
+        handle_checkout()
+        print("--- Press enter to exit the program")
+        input()
+        break
     else:
         print("👋 Goodbye!")
         break
