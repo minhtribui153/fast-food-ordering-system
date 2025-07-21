@@ -517,13 +517,16 @@ def handle_food_menu(skip_to_order: bool = False):
             while True:
                 chosen_category = handle_ui_menu_selection(
                     "Select a category",
-                    options=header_categories,
-                    option_icons=header_category_icons,
+                    options=header_categories + ["All Menus"],
+                    option_icons=header_category_icons + ["  "],
                     back_button=True
                 )
                 if chosen_category == "back": break
-                code = list(MENU_ITEM_IDS.keys())[int(chosen_category)]
-                item_table = generate_item_table(get_items_by_category_code(code))
+                if int(chosen_category) == 5:
+                    item_table = generate_item_table(MENU)
+                else:
+                    code = list(MENU_ITEM_IDS.keys())[int(chosen_category)]
+                    item_table = generate_item_table(get_items_by_category_code(code))
                 display_table(item_table, ["Item ID", "Item Name", "Price"])
         elif chosen_option == 1:
             skip_to_order = False
