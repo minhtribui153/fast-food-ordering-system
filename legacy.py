@@ -309,13 +309,12 @@ def handle_edit_cart():
     Handles viewing and editing the items inside the user cart
     """
     if len(cart) == 0:
-        print("ℹ️ There are currently no items in your cart.")
+        print("ℹ️  There are currently no items in your cart.")
         return
     
     table_headers = ["Index", "Code", "Category", "Name", "Price", "Quantity", "Total"]
     def show():
         """Output items in cart"""
-        print(cart)
         display_table([
             [
                 str(i + 1), cart[i]["id"],
@@ -363,13 +362,12 @@ def handle_edit_cart():
                 ["↔️ ", "✏️ ", "🗑️ "],
                 back_button=True
             )
-            if action not in ['C', 'E', 'D', 'B']: print("❌ Invalid option!")
-            elif action == "C":
+            if action == 0:
                 new_quantity = handle_ui_integer_selection("Please type in the new quantity.", allowed_min=1, allowed_max=100, back_button=True)
                 if new_quantity:
                     for i in indices: cart[i]["quantity"] = new_quantity
                     break
-            elif action == "E":
+            elif action == 1:
                 if len(indices) > 1: print("❌ You can only edit 1 item at a time.")
                 elif split_item_code(cart[indices[0]]["id"])[0] != "C": print("❌ Cannot edit à la carte items. You can only edit combo items.")
                 else:
@@ -377,7 +375,7 @@ def handle_edit_cart():
                     if combo_selected_data:
                         cart[indices[0]]["options"] = combo_selected_data
                         break
-            elif action == "D":
+            elif action == 2:
                 # Follow last index first method: Prevent errors from being raised when delete action is used
                 # Sort out indices in descending order
                 indices.sort(reverse=True)
@@ -386,7 +384,7 @@ def handle_edit_cart():
                     print("ℹ️ There are currently no items in your cart.")
                     return None
                 break
-            elif action == "B": break
+            elif action == "back": break
                     
 def handle_edit_combo(item_id: str, preselected: dict = {}):
     """
