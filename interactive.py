@@ -525,11 +525,11 @@ def handle_edit_cart():
                 cart[current_index]["options"] = combo_selected_data
                 display_modal(
                     "Saved changes to Cart",
-                    f"Successfully saved new item data to cart:\n - ({current["id"]}) {current["name"]}",
+                    f"Successfully saved new item data to cart:\n - ({current['id']}) {current['name']}",
                     "success",
                 )
             else:
-                display_modal("Cannot edit item", f"({current["id"]}) {current["name"]} is an à la carte item. You can only edit combo items.", "error")
+                display_modal("Cannot edit item", f"({current['id']}) {current['name']} is an à la carte item. You can only edit combo items.", "error")
         elif key == "backspace":
             cart.pop(current_index)
             current_index = 0
