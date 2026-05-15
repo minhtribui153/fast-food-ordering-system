@@ -154,11 +154,18 @@ def split_item_code(item_code):
     return cat_code, item_num
 
 def compare_orders(item1, item2):
-    cat_code1 = split_item_code(item1["id"])
-    if item1["id"] != item2["id"]: return False
-    elif cat_code1 == "C":
-        for key in item1["item_ref_ids"].keys():
-            if set(item1["item_ref_ids"][key]) != set(item2["item_ref_ids"][key]):
+    cat_code1, _ = split_item_code(item1["id"])
+    if item1["id"] != item2["id"]:
+        return False
+    if cat_code1 == "C":
+        # For combos, compare chosen options by section and multiset of item ids
+        opts1 = item1.get("options") or {}
+        opts2 = item2.get("options") or {}
+        if set(opts1.keys()) != set(opts2.keys()):
+            return False
+        from collections import Counter
+        for section in opts1.keys():
+            if Counter(opts1[section]) != Counter(opts2[section]):
                 return False
     return True
 
@@ -518,11 +525,11 @@ def handle_edit_cart():
                 cart[current_index]["options"] = combo_selected_data
                 display_modal(
                     "Saved changes to Cart",
-                    f"Successfully saved new item data to cart:\n - ({order["id"]}) {order["name"]}",
+                    f"Successfully saved new item data to cart:\n - ({current['id']}) {current['name']}",
                     "success",
                 )
             else:
-                display_modal("Cannot edit item", f"({current["id"]}) {current["name"]} is an à la carte item. You can only edit combo items.", "error")
+                display_modal("Cannot edit item", f"({current['id']}) {current['name']} is an à la carte item. You can only edit combo items.", "error")
         elif key == "backspace":
             cart.pop(current_index)
             current_index = 0
